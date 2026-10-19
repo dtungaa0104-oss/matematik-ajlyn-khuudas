@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="6–12-р ангийн математикийн цахим ба хэвлэх ажлын хуудас: тест, задгай, холимог даалгавар, хариу шалгах, PDF хэвлэх.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<title>Математикийн ажлын хуудас</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=PT+Sans:wght@400;700&display=swap">
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="shell">
+  <div class="top">
+    <h1 class="brand"><span class="mark" aria-hidden="true">∑</span>Математикийн ажлын хуудас</h1>
+    <p>6–12-р анги. Тест, задгай эсвэл холимог хэлбэрээр. Сурагч цахимаар бөглөж шууд шалгуулна, багш A4 PDF татаж хэвлэнэ. Хуудас бүр шинэ тоонуудтай үүснэ.</p>
+  </div>
+
+  <aside aria-label="Тохиргоо">
+    <section class="panel">
+      <h2 id="lGrade">Анги</h2>
+      <div class="chips" role="group" aria-labelledby="lGrade" id="grades"></div>
+      <p class="book" id="bookNote" hidden></p>
+      <p class="book">Томьёо: KaTeX (MIT лиценз) · PDF: html2pdf.js (MIT лиценз).</p>
+    </section>
+    <section class="panel">
+      <h2 id="lTopic">Сэдэв</h2>
+      <div class="topics" role="radiogroup" aria-labelledby="lTopic" id="topics"></div>
+    </section>
+    <section class="panel">
+      <h2 id="lForm">Даалгаврын хэлбэр</h2>
+      <div class="seg" role="group" aria-labelledby="lForm" id="forms"></div>
+      <h2 id="lLevel">Түвшин ба тоо</h2>
+      <div class="seg" role="group" aria-labelledby="lLevel" id="levels"></div>
+      <label class="f" for="count">Даалгаврын тоо
+        <select id="count"><option>6</option><option selected>10</option><option>15</option><option>20</option></select></label>
+      <button class="btn ghost wide" id="newVar" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>Шинэ хувилбар үүсгэх</button>
+      <div class="row small">Хувилбарын код: <span class="code" id="codeOut"></span></div>
+      <form class="row" id="codeForm">
+        <label class="f" for="codeIn" style="flex:1 1 140px">Кодоор нээх<input type="text" id="codeIn" placeholder="8-2-2-10-1-4821" autocomplete="off"></label>
+        <button class="btn ghost" type="submit" style="align-self:flex-end">Нээх</button>
+      </form>
+      <p class="small" style="margin:0">Багш кодоо сурагчдад өгвөл бүгд ижил хуудас бөглөнө.</p>
+    </section>
+    <section class="panel">
+      <h2>Хэвлэх (PDF)</h2>
+      <label class="f" for="school">Сургуулийн нэр<input type="text" id="school" maxlength="70" placeholder="Жишээ: 1-р сургууль"></label>
+      <label class="f" for="variants">Хувилбарын тоо
+        <select id="variants"><option value="1">1 (бүгдэд ижил)</option><option value="2">2 (А, Б)</option><option value="3">3 (А, Б, В)</option><option value="4">4 (А, Б, В, Г)</option></select></label>
+      <label class="check"><input type="checkbox" id="withKey" checked> Хариултын түлхүүр хавсаргах</label>
+      <button class="btn wide" id="pdfBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>PDF татаж хэвлэх</button>
+      <div class="status" id="pdfStatus" hidden></div>
+    </section>
+  </aside>
+
+  <main>
+    <div class="tabs">
+      <div class="tabbar" role="tablist" aria-label="Горим">
+        <button class="tab" role="tab" id="tabOnline" aria-selected="true">Цахимаар бөглөх</button>
+        <button class="tab" role="tab" id="tabPrint" aria-selected="false">Хэвлэх харагдац</button>
+      </div>
+      <div class="row" id="onlineTools">
+        <button class="btn" id="checkBtn" type="button">Шалгах</button>
+        <button class="btn ghost" id="clearBtn" type="button">Арилгах</button>
+      </div>
+    </div>
+    <div class="score" id="score" hidden></div>
+    <div id="sheet"></div>
+  </main>
+</div>
+<div class="exportwrap" aria-hidden="true"><div class="exportbox" id="exportBox"></div></div>
+
+<script src="js/generators.js"></script>
+<script src="vendor/katex/katex.min.js"></script>
+<script src="js/mathfmt.js"></script>
+<script src="vendor/html2pdf.bundle.min.js" defer></script>
+<script src="js/app.js"></script>
+</body>
+</html>
