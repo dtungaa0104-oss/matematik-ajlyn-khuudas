@@ -45,6 +45,16 @@
       </form>
       <p class="small" style="margin:0">Багш кодоо сурагчдад өгвөл бүгд ижил хуудас бөглөнө.</p>
     </section>
+    <section class="panel" id="sharePanel">
+      <h2>Сурагчдад цахимаар өгөх</h2>
+      <p class="small" style="margin:0">Энэ холбоосыг Messenger, Teams, Google Classroom-оор илгээх эсвэл QR кодыг самбарт гаргана. Сурагч бүр ижил хуудсыг өөрийн утас, компьютер дээр бөглөнө.</p>
+      <label class="check"><input type="checkbox" id="shareReveal"> Шалгасны дараа зөв хариуг харуулах</label>
+      <label class="f" for="shareLink">Сурагчийн холбоос<input type="text" id="shareLink" readonly></label>
+      <button class="btn wide" id="copyLink" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Холбоос хуулах</button>
+      <div class="qr" id="qr" aria-label="Сурагчийн холбоосын QR код" role="img"></div>
+      <button class="btn ghost wide" id="qrBig" type="button">QR кодыг самбарт томоор гаргах</button>
+      <div class="status" id="shareStatus" hidden></div>
+    </section>
     <section class="panel">
       <h2>Хэвлэх (PDF)</h2>
       <label class="f" for="school">Сургуулийн нэр<input type="text" id="school" maxlength="70" placeholder="Жишээ: 1-р сургууль"></label>
@@ -61,22 +71,39 @@
       <div class="tabbar" role="tablist" aria-label="Горим">
         <button class="tab" role="tab" id="tabOnline" aria-selected="true">Цахимаар бөглөх</button>
         <button class="tab" role="tab" id="tabPrint" aria-selected="false">Хэвлэх харагдац</button>
+        <button class="tab" role="tab" id="tabResults" aria-selected="false">Дүн</button>
       </div>
       <div class="row" id="onlineTools">
         <button class="btn" id="checkBtn" type="button">Шалгах</button>
         <button class="btn ghost" id="clearBtn" type="button">Арилгах</button>
       </div>
     </div>
+    <div class="student-bar" id="studentBar" hidden>
+      <div class="sb-head"><b id="sbTitle"></b><span class="small" id="sbMeta"></span></div>
+      <div class="sb-fields">
+        <label class="f" for="stName">Нэр, овог<input type="text" id="stName" maxlength="40" autocomplete="name" placeholder="Жишээ: Б. Сараа"></label>
+        <label class="f" for="stClass">Анги, бүлэг<input type="text" id="stClass" maxlength="12" placeholder="9б"></label>
+      </div>
+    </div>
     <div class="score" id="score" hidden></div>
     <div id="sheet"></div>
   </main>
 </div>
+<dialog class="qrdlg" id="qrDlg" aria-label="QR код">
+  <div class="qrbig" id="qrBigBox"></div>
+  <p class="qrcap">Утасныхаа камераар уншуулж ажлын хуудсаа нээнэ үү</p>
+  <p class="qrcode-txt" id="qrCodeTxt"></p>
+  <form method="dialog"><button class="btn">Хаах</button></form>
+</dialog>
 <div class="exportwrap" aria-hidden="true"><div class="exportbox" id="exportBox"></div></div>
 
+<script src="js/config.js"></script>
 <script src="js/generators.js"></script>
 <script src="vendor/katex/katex.min.js"></script>
 <script src="js/mathfmt.js"></script>
+<script src="vendor/qrcode.js"></script>
 <script src="vendor/html2pdf.bundle.min.js" defer></script>
 <script src="js/app.js"></script>
+<script src="js/results.js"></script>
 </body>
 </html>

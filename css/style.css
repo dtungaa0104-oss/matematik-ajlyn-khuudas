@@ -1,4 +1,5 @@
 /* Математикийн ажлын хуудас — үндсэн загвар */
+[hidden]{display:none !important}
 /* Layout: зүүн талд тохиргооны самбар, баруун талд A4 цаас шиг ажлын хуудас; утсан дээр нэг багана */
 :root{
   --bg:#ECEEE8; --surface:#FFFFFF; --sunk:#E2E5DD; --ink:#16202F; --muted:#586174; --line:#D6DAD0;
@@ -152,3 +153,58 @@ main{flex:999 1 560px;min-width:0;display:flex;flex-direction:column;gap:14px}
 
 /* KaTeX томьёоны нэмэлт тохиргоо */
 .katex{font-size:1.06em}.katex-display{margin:.3em 0}
+
+/* Сурагчдад өгөх, QR */
+.qr{align-self:center;width:168px;height:168px;background:#FFFFFF;border-radius:10px;padding:8px;border:1px solid var(--line)}
+.qr svg,.qrbig svg{width:100%;height:100%;display:block}
+.qrdlg{border:none;border-radius:18px;padding:28px;max-width:min(92vw,620px);background:#FFFFFF;color:#16202F;text-align:center}
+.qrdlg::backdrop{background:rgba(10,14,22,.72)}
+.qrbig{width:min(78vw,72vh,520px);aspect-ratio:1;margin:0 auto}
+.qrcap{font-size:18px;margin:14px 0 4px}
+.qrcode-txt{font-family:var(--sans);font-size:22px;font-weight:700;letter-spacing:.04em;margin:0 0 16px}
+/* Сурагчийн горим */
+.student-bar{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.sb-head{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline}
+.sb-head b{font-size:17px}
+.sb-fields{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:10px}
+body.student aside,body.student #tabPrint,body.student .top p{display:none}
+body.student .tabbar{display:none}
+body.student #studentBar{order:1} body.student #score{order:2} body.student #sheet{order:3} body.student .tabs{order:4;justify-content:center}
+body.student #onlineTools .btn{min-width:160px;min-height:48px;font-size:17px}
+body.student main{flex:1 1 100%}
+.result-card{display:flex;flex-direction:column;gap:8px;flex:1 1 100%}
+.result-card .who{font-size:15px}
+.result-actions{display:flex;flex-wrap:wrap;gap:8px}
+
+/* Багшийн «Дүн» хэсэг */
+.res{display:flex;flex-direction:column;gap:12px}
+.res p{margin:0}
+.res-steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px}
+.res code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.92em;background:var(--paper-rule);padding:1px 5px;border-radius:5px}
+.res-login{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.res-login .f{flex:1 1 220px}
+.res-head{display:flex;flex-wrap:wrap;gap:10px 16px;justify-content:space-between;align-items:flex-end}
+.res-h3{font-family:var(--sans);font-size:14px;letter-spacing:.04em;text-transform:uppercase;color:var(--paper-muted);margin:6px 0 0}
+.linkbtn{appearance:none;background:none;border:0;padding:0;color:#1F4FBF;font:inherit;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.stats div{border:1px solid var(--paper-line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column}
+.stats b{font-family:var(--serif);font-size:22px;font-variant-numeric:tabular-nums}
+.stats span{font-family:var(--sans);font-size:13px;color:var(--paper-muted)}
+.ibars{display:flex;gap:4px;align-items:flex-end;height:150px;padding:18px 0 22px;overflow-x:auto}
+.ibar{flex:1 0 22px;max-width:44px;height:100%;position:relative;display:flex;align-items:flex-end}
+.ibar span{display:block;width:100%;background:#2E7D52;border-radius:4px 4px 0 0}
+.ibar.mid span{background:#C68A12} .ibar.low span{background:#B4372B}
+.ibar em{position:absolute;bottom:-20px;left:0;right:0;text-align:center;font-style:normal;font-family:var(--sans);font-size:12px;color:var(--paper-muted)}
+.ibar b{position:absolute;top:-17px;left:0;right:0;text-align:center;font-family:var(--sans);font-size:11px;font-weight:600;color:var(--paper-ink)}
+.res-tools{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--paper-line);border-radius:10px}
+.rtable{width:100%;border-collapse:collapse;font-family:var(--sans);font-size:14px}
+.rtable th,.rtable td{padding:8px 10px;border-bottom:1px solid var(--paper-rule);text-align:left;white-space:nowrap}
+.rtable th{background:#F3F5F8;font-weight:700;color:var(--paper-muted);font-size:12px;letter-spacing:.03em;position:sticky;top:0}
+.rtable td.num,.rtable th.num{text-align:right;font-variant-numeric:tabular-nums}
+.rtable td.ok{color:#1C6B43;font-weight:700} .rtable td.bad{color:#A8241A;font-weight:700}
+.rtable td:nth-child(2){white-space:normal;min-width:140px}
+.dots i{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:3px;vertical-align:middle}
+.dots i.y{background:#2E7D52} .dots i.n{background:#B4372B} .dots i.e{background:#C9CED6}
+
+.res .btn,.res select,.res input,.res-h3,.res .f{font-family:var(--ui)}
