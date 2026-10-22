@@ -1876,7 +1876,7 @@
       seen.add(p.q); items.push(Object.assign(p, { topic: t.title, note: t.note, wide: !!t.wide, root: !!t.root, ch: t.ch, page: t.page })); k++;
     }
     if(form){
-      const crng = mulberry32(seed * 104729 + grade * 7919 + topicIdx * 131 + level * 17 + 11), nmc = form === 1 ? items.length : Math.ceil(items.length / 2);
+      const crng = mulberry32(seed * 104729 + grade * 7919 + topicIdx * 131 + level * 17 + 11), nmc = typeof form === 'object' ? Math.min(form.mc, items.length) : form === 1 ? items.length : Math.ceil(items.length / 2);
       items.forEach((p, i) => { if(i < nmc) addChoices(p, crng); });
     }
     items.forEach(p => { p.q = polish(p.q); p.show = polish(p.show); if(p.mc) p.mc = p.mc.map(polish); });

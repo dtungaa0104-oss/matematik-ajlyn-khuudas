@@ -3,7 +3,22 @@ const W = window.WS;
 const LV = {1: 'Суурь', 2: 'Дунд', 3: 'Ахисан'};
 const LETTER = ['А', 'Б', 'В', 'Г'];
 const FORMS = {0: 'Задгай', 1: 'Тест', 2: 'Холимог'};
-const S = { form: 0, choice: {}, grade: 8, topic: 0, level: 1, count: 10, seed: 1000 + Math.floor(Math.random() * 9000), mode: 'online', answers: {}, checked: false, reveal: false, items: [], student: false, allowReveal: false };
+const PRESETS = [[10, 0, 'Тест 10'], [0, 10, 'Задгай 10'], [5, 5, '5 + 5'], [10, 5, '10 + 5']];
+const S = { form: 0, choice: {}, grade: 8, topic: 0, level: 1, count: 10, seed: 1000 + Math.floor(Math.random() * 9000), mode: 'online', answers: {}, checked: false, reveal: false, items: [], student: false, allowReveal: false, mc: 5, op: 5, legacy: null };
+/* Даалгаврын тоо: сонгох (mc) ба задгай (op). Хуучин кодыг (тоо + хэлбэр) legacy-д хадгалж яг ижил хуудсыг гаргана. */
+const total = () => S.legacy ? S.legacy.count : S.mc + S.op;
+const formArg = () => S.legacy ? S.legacy.form : {mc: S.mc};
+const formLabel = () => { if(S.legacy) return FORMS[S.legacy.form]; return S.mc && S.op ? `${S.mc} сонгох + ${S.op} задгай` : S.mc ? 'Тест' : 'Задгай'; };
+function applyLegacy(count, form){ count = Math.max(1, Math.min(40, count)); S.legacy = {count, form}; const m = form === 1 ? count : form === 2 ? Math.ceil(count / 2) : 0; S.mc = m; S.op = count - m; }
+function parseCode(str){
+  const m = String(str).match(/^(\d{1,2})-(\d{1,3})-([123])-(?:(\d{1,2})\+(\d{1,2})|(\d{1,2})-([012])|(\d{1,2}))-(\d{1,6})$/);
+  if(!m) return null;
+  const r = {grade: Number(m[1]), topic: Number(m[2]), level: Number(m[3]), seed: Number(m[9])};
+  if(m[4] != null){ r.mc = Number(m[4]); r.op = Number(m[5]); if(r.mc + r.op < 1 || r.mc + r.op > 40) return null; }
+  else { r.count = Number(m[6] ?? m[8]); r.form = m[7] != null ? Number(m[7]) : 0; }
+  return r;
+}
+function applyCode(r){ Object.assign(S, {grade: r.grade, topic: r.topic, level: r.level, seed: r.seed}); if(r.mc != null){ S.mc = r.mc; S.op = r.op; S.legacy = null; } else applyLegacy(r.count, r.form); }
 const $ = id => document.getElementById(id);
 /* Элемент байхгүй (index.html хуучин хувилбартай) үед бүх хуудас зогсохоос сэргийлнэ */
 const on = (id, ev, fn) => { const el = $(id); if(el) el.addEventListener(ev, fn); else missingParts.add('index.html'); };
@@ -23,7 +38,7 @@ function showProblem(msg){
 /* index.html хуучин үлдсэн бол дутуу элементүүдийг нууцаар нөхөж, анхааруулга харуулна */
 (function(){
   const ids = {tabResults: 'button', studentBar: 'div', sbTitle: 'b', sbMeta: 'span', stName: 'input', stClass: 'input', sharePanel: 'section', shareLink: 'input', shareReveal: 'input',
-    copyLink: 'button', qr: 'div', qrBig: 'button', shareStatus: 'div', qrDlg: 'dialog', qrBigBox: 'div', qrCodeTxt: 'p', score: 'div', sheet: 'div', onlineTools: 'div', checkBtn: 'button', clearBtn: 'button'};
+    copyLink: 'button', qr: 'div', qrBig: 'button', shareStatus: 'div', qrDlg: 'dialog', qrBigBox: 'div', qrCodeTxt: 'p', score: 'div', sheet: 'div', onlineTools: 'div', checkBtn: 'button', clearBtn: 'button', mcCount: 'select', opCount: 'select', cntNote: 'p'};
   const miss = Object.keys(ids).filter(id => !$(id));
   if(!miss.length) return;
   const box = document.createElement('div'); box.hidden = true; document.body.appendChild(box);
@@ -34,9 +49,9 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 let downloads = null;
 if(window.claude && window.claude.use) window.claude.use('downloads').then(d => { downloads = d; }).catch(() => {});
 
-function load(){ try { const v = JSON.parse(localStorage.getItem('ws_prefs') || '{}'); Object.assign(S, {grade: v.grade || S.grade, topic: v.topic ?? S.topic, level: v.level || S.level, count: v.count || S.count, form: v.form ?? S.form}); $('school').value = v.school || ''; } catch(e){} }
-function save(){ if(S.student) return; try { localStorage.setItem('ws_prefs', JSON.stringify({grade: S.grade, topic: S.topic, level: S.level, count: S.count, form: S.form, school: $('school').value})); } catch(e){} }
-const code = (seed = S.seed) => `${S.grade}-${S.topic}-${S.level}-${S.count}-${S.form}-${seed}`;
+function load(){ try { const v = JSON.parse(localStorage.getItem('ws_prefs') || '{}'); Object.assign(S, {grade: v.grade || S.grade, topic: v.topic ?? S.topic, level: v.level || S.level}); if(v.mc != null && v.op != null){ S.mc = v.mc; S.op = v.op; } else if(v.count) applyLegacy(v.count, v.form ?? 0); S.legacy = null; if(S.mc + S.op < 1) S.op = 10; $('school').value = v.school || ''; } catch(e){} }
+function save(){ if(S.student) return; try { localStorage.setItem('ws_prefs', JSON.stringify({grade: S.grade, topic: S.topic, level: S.level, mc: S.mc, op: S.op, school: $('school').value})); } catch(e){} }
+const code = (seed = S.seed) => S.legacy ? `${S.grade}-${S.topic}-${S.level}-${S.legacy.count}-${S.legacy.form}-${seed}` : `${S.grade}-${S.topic}-${S.level}-${S.mc}+${S.op}-${seed}`;
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
 const chaptersOf = g => (W.CHAPTERS || {})[g] || null;
 const validTopic = (g, t) => t === 0 || (t >= 1 && t <= W.topicsOf(g).length) || (t > 100 && !!chaptersOf(g) && !!chaptersOf(g)[t - 100]);
@@ -69,9 +84,10 @@ function controls(){
   $('topics').classList.toggle('long', !!chs);
   $('bookNote').hidden = false;
   $('bookNote').innerHTML = `Сэдвүүдийг ерөнхий боловсролын сургуулийн <b>Математикийн сургалтын хөтөлбөр</b>-ийн ${S.grade}-р ангийн агуулгын хүрээгээр бүлэглэв. Бүх даалгаврыг энэ сайтад зориулж шинээр зохиосон; тоо, нөхцөл нь код бүрт өөр гарна.`;
-  $('forms').innerHTML = [0, 1, 2].map(f => `<button type="button" data-f="${f}" aria-pressed="${f === S.form}">${FORMS[f]}</button>`).join('');
+  $('forms').innerHTML = PRESETS.map(([m, o, t], i) => `<button type="button" data-f="${i}" aria-pressed="${!S.legacy && S.mc === m && S.op === o}">${t}</button>`).join('');
+  $('mcCount').value = String(Math.min(20, S.mc)); $('opCount').value = String(Math.min(20, S.op));
+  $('cntNote').textContent = `Нийт ${S.mc + S.op} даалгавар: ${S.mc} сонгох, ${S.op} задгай.`;
   $('levels').innerHTML = [1, 2, 3].map(l => `<button type="button" data-l="${l}" aria-pressed="${l === S.level}">${LV[l]}</button>`).join('');
-  $('count').value = String(S.count);
   $('codeOut').textContent = code();
   if(typeof updateShare === 'function') updateShare();
 }
@@ -120,7 +136,7 @@ function sheetHTML(items, opts){
       <div class="p-grade">${S.grade}-р анги${letter ? ' · Хувилбар ' + letter : ''}</div>
       <h2 class="p-topic">${Mx(esc(topicTitle()))}</h2>
       ${bookRef() ? `<div class="p-book">${esc(bookRef())}</div>` : ''}
-      <div class="p-meta">${LV[S.level]} түвшин · ${FORMS[S.form]} · ${items.length} даалгавар · Код ${label}</div>
+      <div class="p-meta">${LV[S.level]} түвшин · ${formLabel()} · ${items.length} даалгавар · Код ${label}</div>
       ${mode === 'print' ? `<div class="p-fields"><span>Нэр:<i></i></span><span>Бүлэг:<i></i></span><span>Огноо:<i></i></span><span>Оноо:<i></i>/${items.length}</span></div>` : ''}
     </div>
     <p class="p-instr"><b>Заавар.</b> ${instr}${nmc && nopen && notes.length ? '<br><b>Хариуны хэлбэр.</b> ' + notes.map(n => Mx(esc(n))).join(' ') : ''}</p>
@@ -130,12 +146,12 @@ function sheetHTML(items, opts){
 }
 function keyHTML(items, letter, seed){
   return `<section class="paper key"><h3>Хариултын түлхүүр${letter ? ' · Хувилбар ' + letter : ''}</h3>
-    <div class="p-meta">${S.grade}-р анги · ${Mx(esc(topicTitle()))} · ${LV[S.level]} · ${FORMS[S.form]} · Код ${code(seed)}</div>
+    <div class="p-meta">${S.grade}-р анги · ${Mx(esc(topicTitle()))} · ${LV[S.level]} · ${formLabel()} · Код ${code(seed)}</div>
     <ol class="key-list">${items.map((p, i) => `<li><span>${i + 1}.</span>${p.mc ? '<b style="font-family:var(--sans)">' + LETTER[p.ci] + '</b>&nbsp;<span class="ov">' + Mx(p.mc[p.ci]) + '</span>' : '<span class="ov">' + Mx(p.show) + '</span>'}</li>`).join('')}</ol></section>`;
 }
 
 function build(){
-  S.items = W.makeSheet(S.grade, S.topic, S.level, S.count, S.seed, S.form);
+  S.items = W.makeSheet(S.grade, S.topic, S.level, total(), S.seed, formArg());
   S.answers = {}; S.choice = {}; S.checked = false; S.reveal = false; S.results = [];
   render();
 }
@@ -150,7 +166,7 @@ function render(){
   let html = sheetHTML(S.items, {mode: S.mode, seed: S.seed});
   if(S.mode === 'print' && $('withKey').checked) html += `<div class="paper-key">${keyHTML(S.items, '', S.seed)}</div>`;
   $('sheet').innerHTML = html;
-  if(S.items.length < S.count) $('sheet').insertAdjacentHTML('afterbegin', `<p class="status" style="margin:0 0 12px">Энэ сэдэв, түвшинд давтагдахгүй ${S.items.length} даалгавар үүслээ.</p>`);
+  if(S.items.length < total()) $('sheet').insertAdjacentHTML('afterbegin', `<p class="status" style="margin:0 0 12px">Энэ сэдэв, түвшинд давтагдахгүй ${S.items.length} даалгавар үүслээ.</p>`);
   renderStudent();
   const sc = $('score');
   if(S.student && S.checked){
@@ -194,24 +210,26 @@ function fixSvgForCanvas(root){
     svg.style.width = w.toFixed(2) + 'px'; svg.style.height = h.toFixed(2) + 'px';
   });
 }
+let restoreScroll = null;
 async function exportPDF(){
   const st = $('pdfStatus'), btn = $('pdfBtn');
   const say = (t, c) => { st.hidden = false; st.className = 'status ' + (c || ''); st.textContent = t; };
   if(!window.html2pdf){ say('PDF бэлтгэх хэрэгсэл ачаалагдаагүй байна. Хуудсыг дахин ачаалаад оролдоно уу.', 'err'); return; }
   btn.disabled = true; say('PDF бэлтгэж байна…');
   const nv = Number($('variants').value), withKey = $('withKey').checked, box = $('exportBox');
-  const sets = Array.from({length: nv}, (_, v) => ({ seed: S.seed + v, letter: nv > 1 ? LETTER[v] : '', items: v === 0 ? S.items : W.makeSheet(S.grade, S.topic, S.level, S.count, S.seed + v, S.form) }));
+  const sets = Array.from({length: nv}, (_, v) => ({ seed: S.seed + v, letter: nv > 1 ? LETTER[v] : '', items: v === 0 ? S.items : W.makeSheet(S.grade, S.topic, S.level, total(), S.seed + v, formArg()) }));
   const brk = '<div class="html2pdf__page-break"></div>';
   let html = sets.map(x => sheetHTML(x.items, {mode: 'print', letter: x.letter, seed: x.seed})).join(brk);
   if(withKey) html += brk + sets.map(x => keyHTML(x.items, x.letter, x.seed)).join('<div style="height:24px"></div>');
   box.innerHTML = html;
   try {
     if(document.fonts && document.fonts.ready) await document.fonts.ready;
+    const sx = window.scrollX, sy = window.scrollY; window.scrollTo(0, 0); restoreScroll = () => window.scrollTo(sx, sy);
     fixSvgForCanvas(box);
     const name = `ajlyn-khuudas-${S.grade}-angi-${code().replace(/[^0-9-]/g, '')}.pdf`;
     const blob = await window.html2pdf().set({
       margin: [12, 12, 14, 12], filename: name, image: {type: 'jpeg', quality: 0.96},
-      html2canvas: {scale: 2, backgroundColor: '#FFFFFF', useCORS: true},
+      html2canvas: {scale: 2, backgroundColor: '#FFFFFF', useCORS: true, scrollX: 0, scrollY: 0},
       jsPDF: {unit: 'mm', format: 'a4', orientation: 'portrait'},
       pagebreak: {mode: ['css', 'legacy'], avoid: ['.ws-item', '.key-list li']}
     }).from(box).outputPdf('blob');
@@ -222,21 +240,23 @@ async function exportPDF(){
     const code = e && e.code;
     if(code === 'declined' || code === 'cancelled' || code === 'canceled') say('Татахыг цуцаллаа.');
     else say('PDF үүсгэж чадсангүй. Дахин оролдоно уу.', 'err');
-  } finally { btn.disabled = false; box.innerHTML = ''; }
+  } finally { btn.disabled = false; box.innerHTML = ''; if(restoreScroll) restoreScroll(); }
 }
 
 /* ---------- үйлдлүүд ---------- */
 document.addEventListener('click', e => {
   const g = e.target.closest('[data-g]'); if(g){ S.grade = Number(g.dataset.g); S.topic = 0; build(); return; }
   const l = e.target.closest('[data-l]'); if(l){ S.level = Number(l.dataset.l); build(); return; }
-  const f = e.target.closest('[data-f]'); if(f){ S.form = Number(f.dataset.f); build(); return; }
+  const f = e.target.closest('[data-f]'); if(f){ const [m, o] = PRESETS[Number(f.dataset.f)]; S.mc = m; S.op = o; S.legacy = null; build(); return; }
   const o = e.target.closest('[data-mc]'); if(o && !S.checked){ const i = Number(o.dataset.mc), k = Number(o.dataset.k); S.choice[i] = S.choice[i] === k ? undefined : k; const id = o.id; render(); const el = $(id); if(el) el.focus(); return; }
   const rb = e.target.closest('[data-root]');
   if(rb){ const inp = $('a' + rb.dataset.root); const p = inp.selectionStart ?? inp.value.length; inp.value = inp.value.slice(0, p) + '√' + inp.value.slice(inp.selectionEnd ?? p); S.answers[rb.dataset.root] = inp.value; inp.focus(); inp.setSelectionRange(p + 1, p + 1); return; }
   if(e.target.closest('#revealBtn')){ S.reveal = !S.reveal; render(); }
 });
 on('topics', 'change', e => { S.topic = Number(e.target.value); build(); });
-on('count', 'change', e => { S.count = Number(e.target.value); build(); });
+const setCounts = (m, o, changed) => { if(m + o < 1){ if(changed === 'mc') o = 1; else m = 1; } S.mc = m; S.op = o; S.legacy = null; build(); };
+on('mcCount', 'change', e => setCounts(Number(e.target.value), S.op, 'mc'));
+on('opCount', 'change', e => setCounts(S.mc, Number(e.target.value), 'op'));
 on('newVar', 'click', () => { S.seed = 1000 + Math.floor(Math.random() * 9000); build(); });
 on('tabOnline', 'click', () => { S.mode = 'online'; render(); });
 on('tabPrint', 'click', () => { S.mode = 'print'; render(); });
@@ -299,25 +319,23 @@ on('sheet', 'keydown', e => {
 });
 on('codeForm', 'submit', e => {
   e.preventDefault();
-  const m = $('codeIn').value.trim().match(/^(\d{1,2})-(\d{1,3})-([123])-(\d{1,2})-(?:([012])-)?(\d{1,6})$/);
-  const g = m && Number(m[1]);
-  if(!m || !W.GRADES.includes(g) || !validTopic(g, Number(m[2]))){ $('codeIn').setCustomValidity('Код буруу байна'); $('codeIn').reportValidity(); return; }
+  const r = parseCode($('codeIn').value.trim());
+  if(!r || !W.GRADES.includes(r.grade) || !validTopic(r.grade, r.topic)){ $('codeIn').setCustomValidity('Код буруу байна'); $('codeIn').reportValidity(); return; }
   $('codeIn').setCustomValidity('');
-  Object.assign(S, {grade: g, topic: Number(m[2]), level: Number(m[3]), count: [6, 10, 15, 20].includes(Number(m[4])) ? Number(m[4]) : 10, form: Number(m[5] || 0), seed: Number(m[6])});
+  applyCode(r);
   S.mode = 'online'; build();
 });
 on('codeIn', 'input', () => $('codeIn').setCustomValidity(''));
 
 load();
-const h = (location.hash || '').match(/^#(w|s|sr)-(\d{1,2})-(\d{1,3})-([123])-(\d{1,2})-(?:([012])-)?(\d{1,6})$/);
-if(h && W.GRADES.includes(Number(h[2]))){
-  Object.assign(S, {grade: Number(h[2]), topic: Number(h[3]), level: Number(h[4]), count: Number(h[5]), form: Number(h[6] || 0), seed: Number(h[7]), mode: 'online'});
-  if(h[1] !== 'w' && validTopic(S.grade, S.topic)){
-    S.student = true; S.allowReveal = h[1] === 'sr'; S.startedAt = Date.now(); document.body.classList.add('student');
+const hm = (location.hash || '').match(/^#(w|s|sr)-(.+)$/), h = hm && parseCode(decodeURIComponent(hm[2]));
+if(h && W.GRADES.includes(h.grade)){
+  applyCode(h); S.mode = 'online';
+  if(hm[1] !== 'w' && validTopic(S.grade, S.topic)){
+    S.student = true; S.allowReveal = hm[1] === 'sr'; S.startedAt = Date.now(); document.body.classList.add('student');
     try { const v = JSON.parse(localStorage.getItem('ws_student') || '{}'); $('stName').value = v.n || ''; $('stClass').value = v.c || ''; } catch(e){}
   }
 }
-if(![0, 1, 2].includes(S.form)) S.form = 0;
 if(!validTopic(S.grade, S.topic)) S.topic = 0;
-if(![6, 10, 15, 20].includes(S.count)) S.count = 10;
+if(!S.legacy && (S.mc + S.op < 1 || S.mc + S.op > 40)){ S.mc = 5; S.op = 5; }
 try { build(); } catch(e){ showProblem('Хуудсыг ачаалахад алдаа гарлаа: ' + (e && e.message) + '. Бүх файлыг шинэ zip-ээс дахин оруулна уу.'); console.error(e); }

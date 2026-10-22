@@ -214,3 +214,8 @@ body.student main{flex:1 1 100%}
 .p-fig svg{display:block;width:100%;height:auto;max-height:190px}
 .exportbox .p-fig{max-width:240px}
 .exportbox .p-fig svg{max-height:175px}
+
+/* Сонгох ба задгай даалгаврын тоо */
+.cnt2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#forms{display:grid;grid-template-columns:1fr 1fr}
+#forms button{font-size:14px}

@@ -14,7 +14,7 @@
     const detail = S.results.map(x => x === true ? '1' : x === false ? '0' : '-').join('');
     const answers = S.items.map((p, i) => `${i + 1}) ${p.mc ? (S.choice[i] == null ? '—' : LETTER[S.choice[i]]) : ((S.answers[i] || '').trim() || '—')}`).join('; ');
     return {
-      code: code(), grade: S.grade, topic: plain(topicTitle()), level: LV[S.level], form: FORMS[S.form],
+      code: code(), grade: S.grade, topic: plain(topicTitle()), level: LV[S.level], form: formLabel(),
       name: $('stName').value.trim(), group: $('stClass').value.trim(),
       score: ok, total: n, minutes: S.startedAt ? (Date.now() - S.startedAt) / 60000 : 0,
       missed: S.results.map((x, i) => x === true ? null : i + 1).filter(Boolean).join(', '),
@@ -38,14 +38,40 @@
       const res = await fetch(url, {method: 'POST', body: JSON.stringify(data)});
       const j = await res.json();
       if(j && j.ok) setSend({text: `Дүн багшид хүрлээ ✓${j.attempt > 1 ? ' (' + j.attempt + '-р оролдлого)' : ''}`, cls: 'ok'});
+      else if(j && j.error === 'code') setSend({text: 'Багшийн дүнгийн скрипт хуучин хувилбартай тул энэ кодыг хүлээж авсангүй. «Мессежээр илгээх»-ээр илгээж, багшдаа мэдэгдэнэ үү.', cls: 'err', retry: true});
       else setSend({text: 'Дүн хадгалагдсангүй (' + ((j && j.error) || 'алдаа') + '). Дахин оролдоно уу.', cls: 'err', retry: true});
     } catch(e){
       // Хариуг уншиж чадаагүй ч хүсэлт хүрсэн байж болно — CORS-гүй горимоор дахин илгээхгүй, давхардлаас сэргийлнэ.
       if(navigator.onLine === false) setSend({text: 'Интернэт холболт алга. Холбогдсоны дараа «Дахин илгээх» дарна уу.', cls: 'err', retry: true});
-      else setSend({text: 'Илгээхэд алдаа гарлаа. «Дахин илгээх» дарна уу, эсвэл «Мессежээр илгээх»-ийг ашиглана уу.', cls: 'err', retry: true});
+      else setSend({text: 'Дүнг багшийн хүснэгт хүлээж авсангүй. «Дахин илгээх» дарна уу; болохгүй бол «Мессежээр илгээх»-ээр илгээж, багшдаа «Дүн → Холболт шалгах»-ыг хийлгэнэ үү.', cls: 'err', retry: true});
     }
   };
   document.addEventListener('click', e => { if(e.target.closest('#retrySend')) submitResult(); });
+
+  /* ---------- Холболт шалгах ---------- */
+  async function diagnose(){
+    const url = URL0();
+    if(!url) return {ok: false, msg: 'js/config.js доторх RESULTS_URL хоосон байна.'};
+    if(/docs\.google\.com\/spreadsheets/.test(url)) return {ok: false, msg: 'RESULTS_URL-д хүснэгтийн хаяг орсон байна. Apps Script-ийн «Новое развертывание → Веб-приложение»-ээс гарсан …/exec хаягийг оруулна уу.'};
+    if(/\/dev(\?|$)/.test(url)) return {ok: false, msg: 'RESULTS_URL нь /dev-ээр төгссөн байна. Байршуулалтаас гарсан …/exec хаягийг оруулна уу.'};
+    if(!/^https:\/\/script\.google(usercontent)?\.com\/.+\/exec$/.test(url)) return {ok: false, msg: 'RESULTS_URL буруу хэлбэртэй: ' + url + ' — «https://script.google.com/macros/s/…/exec» хэлбэртэй байх ёстой (зай, илүү тэмдэггүй).'};
+    let res, text;
+    try { res = await fetch(url + '?action=ping'); text = await res.text(); }
+    catch(e){ return {ok: false, msg: 'Скрипт хандалт зөвшөөрөхгүй байна. Apps Script → Управление развертываниями → ✏️ → «У кого есть доступ: Все» (Anyone) болгож, «Версия: Новая версия» сонгоод «Развернуть» дарна уу. Сургуулийн (Workspace) бүртгэлд «Все» сонголт байхгүй бол хувийн Gmail бүртгэлээр скриптээ үүсгэнэ үү.'}; }
+    let j = null; try { j = JSON.parse(text); } catch(e){}
+    if(j && j.ok && j.app === 'ajlyn-khuudas') return (j.v || 1) < 2 ? {ok: false, msg: 'Холболт хэвийн, гэхдээ скрипт хуучин хувилбартай: «10+5» хэлбэрийн шинэ кодтой дүнг хүлээж авахгүй. apps-script/Code.gs-ийн шинэ кодыг хуулж тавиад «Управление развертываниями → ✏️ → Новая версия → Развернуть» хийнэ үү.'} : {ok: true, msg: 'Холболт хэвийн ✓ Скрипт ажиллаж байна.'};
+    if(j && j.ok === false && j.error === 'key') return {ok: false, msg: 'Скрипт хуучин хувилбартай байна. Code.gs-ийг шинэчлээд «Управление развертываниями → ✏️ → Новая версия → Развернуть» хийнэ үү.'};
+    if(/<html/i.test(text || '')) return {ok: false, msg: 'Скриптээс HTML хуудас ирлээ (нэвтрэх хуудас эсвэл алдаа). Хандах эрх «Все» эсэх, Code.gs бүтэн хадгалагдсан эсэхийг шалгаад шинэ хувилбараар дахин байршуулна уу.'};
+    return {ok: false, msg: 'Скриптийн хариу танигдсангүй (HTTP ' + (res && res.status) + ').'};
+  }
+  R.diag = null;
+  document.addEventListener('click', async e => {
+    if(!e.target.closest('#resDiag')) return;
+    R.diag = {ok: null, msg: 'Шалгаж байна…'}; renderResults();
+    R.diag = await diagnose(); renderResults();
+  });
+  const diagHTML = () => `<div class="row" style="align-items:center"><button class="btn ghost" id="resDiag" type="button">Холболт шалгах</button><span class="small">Хаяг: ${esc(URL0() || '—')}</span></div>
+    ${R.diag ? `<div class="status ${R.diag.ok ? 'ok' : R.diag.ok === false ? 'err' : ''}">${esc(R.diag.msg)}</div>` : ''}`;
 
   /* ---------- Багш: «Дүн» хэсэг ---------- */
   async function api(params){
@@ -58,7 +84,7 @@
       const j = await api({action: 'list', key: R.key});
       if(!j.ok){ R.error = j.error === 'key' ? 'Нууц үг буруу байна.' : 'Алдаа: ' + j.error; R.codes = null; }
       else { R.codes = j.codes; try { localStorage.setItem('ws_tkey', R.key); } catch(e){} }
-    } catch(e){ R.error = 'Хүснэгттэй холбогдож чадсангүй. js/config.js доторх RESULTS_URL зөв эсэхийг шалгана уу.'; }
+    } catch(e){ R.error = 'Хүснэгттэй холбогдож чадсангүй. Доорх «Холболт шалгах» товчийг дарж шалтгааныг харна уу.'; }
     R.loading = false; renderResults();
   }
   async function loadCode(c){
@@ -88,7 +114,8 @@
         <button class="btn" type="submit">Нэвтрэх</button>
       </form>
       ${R.error ? `<div class="status err">${esc(R.error)}</div>` : ''}
-      <p class="small">Нууц үг нь Apps Script доторх TEACHER_KEY. Энэ төхөөрөмж дээр хадгалагдана.</p></section>`;
+      <p class="small">Нууц үг нь Apps Script доторх TEACHER_KEY. Энэ төхөөрөмж дээр хадгалагдана.</p>
+      ${diagHTML()}</section>`;
   }
   function codesHTML(){
     const cur = code();
@@ -98,7 +125,8 @@
         <div class="row"><button class="btn ghost" id="resReload" type="button">Шинэчлэх</button><button class="btn ghost" id="resLogout" type="button">Гарах</button></div></div>
       <p class="small">Одоо сонгосон хуудасны код: <button class="linkbtn" data-rcode="${cur}">${cur}</button></p>
       ${R.codes && R.codes.length ? `<div class="tbl-wrap"><table class="rtable"><thead><tr><th>Код</th><th>Анги</th><th>Сэдэв</th><th class="num">Сурагч</th><th class="num">Дундаж</th><th>Сүүлд</th></tr></thead><tbody>${rows}</tbody></table></div>`
-        : '<p>Одоогоор илгээсэн дүн алга. Сурагчдад холбоос өгсний дараа энд гарна.</p>'}</section>`;
+        : '<p>Одоогоор илгээсэн дүн алга. Сурагчдад холбоос өгсний дараа энд гарна.</p>'}
+      ${diagHTML()}</section>`;
   }
   function detailHTML(){
     let rows = (R.rows || []).slice();
