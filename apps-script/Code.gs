@@ -11,14 +11,34 @@
  *  5. Гарсан ".../exec" хаягийг сайтын js/config.js файлд RESULTS_URL болгон хуулна.
  */
 
-const TEACHER_KEY = 'ЭНИЙГ-СОЛИНО-УУ';   // Багшийн нууц үг: сайтын «Дүн» хэсэгт оруулна
+const TEACHER_KEY = 'Math2026';   // Багшийн нууц үг: сайтын «Дүн» хэсэгт оруулна
 const SHEET_NAME = 'Дүн';
 const HEAD = ['Илгээсэн огноо', 'Код', 'Анги', 'Сэдэв', 'Түвшин', 'Хэлбэр', 'Нэр', 'Бүлэг',
   'Оноо', 'Нийт', 'Хувь (%)', 'Хугацаа (мин)', 'Алдсан даалгавар', 'Даалгавар бүрийн дүн', 'Сурагчийн хариу', 'Оролдлого'];
-const CODE_RE = /^\d{1,2}-\d{1,3}-[123]-\d{1,2}-[012]-\d{1,6}$/;
+const CODE_RE = /^\d{1,2}-\d{1,3}-[123]-(\d{1,2}-[012]|\d{1,2}\+\d{1,2})-\d{1,6}$/;  // хуучин: 9-5-2-10-2-2024, шинэ: 9-5-2-10+5-2024
+
+/** Хүснэгтийг олох: Sheets-ээс нээсэн бол тэр хүснэгт, script.google.com-оос шууд үүсгэсэн бол шинэ хүснэгтийг автоматаар үүсгэнэ */
+function ss_() {
+  const active = SpreadsheetApp.getActiveSpreadsheet();
+  if (active) return active;
+  const props = PropertiesService.getScriptProperties();
+  const id = props.getProperty('SHEET_ID');
+  if (id) { try { return SpreadsheetApp.openById(id); } catch (e) {} }
+  const ss = SpreadsheetApp.create('Математикийн ажлын хуудас — дүн');
+  props.setProperty('SHEET_ID', ss.getId());
+  return ss;
+}
+
+/** ЭХЛЭЭД НЭГ УДАА АЖИЛЛУУЛНА: дээрх цэснээс «setup»-ийг сонгоод ▷ Выполнить / Run дарна.
+ *  Google зөвшөөрөл олгоод, дүн хадгалах хүснэгтийн холбоосыг Журнал (Execution log)-д харуулна. */
+function setup() {
+  const sh = sheet_();
+  Logger.log('Дүн хадгалах хүснэгт бэлэн: ' + sh.getParent().getUrl());
+  Logger.log(TEACHER_KEY === 'ЭНИЙГ-СОЛИНО-УУ' ? 'АНХААР: TEACHER_KEY-г өөрийн нууц үгээр солиорой!' : 'Нууц үг тохируулагдсан.');
+}
 
 function sheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = ss_();
   let sh = ss.getSheetByName(SHEET_NAME);
   if (!sh) {
     sh = ss.insertSheet(SHEET_NAME);
@@ -74,7 +94,7 @@ function doPost(e) {
 /** Багшийн «Дүн» хэсэгт өгөгдөл өгөх (нууц үгтэй) */
 function doGet(e) {
   const p = e.parameter || {};
-  if (p.action === 'ping') return out_({ ok: true, app: 'ajlyn-khuudas' });
+  if (p.action === 'ping') return out_({ ok: true, app: 'ajlyn-khuudas', v: 2 });
   if (p.key !== TEACHER_KEY) return out_({ ok: false, error: 'key' });
   const sh = sheet_();
   const last = sh.getLastRow();
