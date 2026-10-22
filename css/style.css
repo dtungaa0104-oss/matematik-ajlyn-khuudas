@@ -208,3 +208,9 @@ body.student main{flex:1 1 100%}
 .dots i.y{background:#2E7D52} .dots i.n{background:#B4372B} .dots i.e{background:#C9CED6}
 
 .res .btn,.res select,.res input,.res-h3,.res .f{font-family:var(--ui)}
+
+/* Геометрийн зураг */
+.p-fig{grid-column:2;margin:6px 0 2px;max-width:250px}
+.p-fig svg{display:block;width:100%;height:auto;max-height:190px}
+.exportbox .p-fig{max-width:200px}
+.exportbox .p-fig svg{max-height:150px}
