@@ -212,5 +212,5 @@ body.student main{flex:1 1 100%}
 /* Геометрийн зураг */
 .p-fig{grid-column:2;margin:6px 0 2px;max-width:250px}
 .p-fig svg{display:block;width:100%;height:auto;max-height:190px}
-.exportbox .p-fig{max-width:200px}
-.exportbox .p-fig svg{max-height:150px}
+.exportbox .p-fig{max-width:240px}
+.exportbox .p-fig svg{max-height:175px}

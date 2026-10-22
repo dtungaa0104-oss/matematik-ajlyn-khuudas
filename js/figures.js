@@ -219,5 +219,62 @@
   /* Хойд зүгийн жижиг сум */
   F.north = (f, p, L = .35) => { f.arrow(p, [p[0], p[1] + L], {stroke: SOFT, w: 1.1}); f.text([p[0], p[1] + L], 'Х', [0, 1], {dist: 7, size: 10, fill: SOFT}); };
 
+
+  /* ---------- Функцийн график ----------
+     o = { fns: [{f, dom:[a,b], color, dash, label, lx}], pts: [{p:[x,y], label, dir, open, color}], vl: [x...] (босоо асимптот), hl: [y...],
+           segs: [{ps:[[x,y]...], color}], x: [x0,x1], y: [y0,y1], xl: 'x', yl: 'y', shade: {f, a, b}, W, H, grid: true } */
+  const nice = r => { const raw = r / 6, p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / p; return (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p; };
+  F.plot = (o) => {
+    const W = o.W || 250, H = o.H || 200, pl = 26, pr = 14, pt = 14, pb = 22;
+    let [x0, x1] = o.x, [y0, y1] = o.y;
+    const sx = (W - pl - pr) / (x1 - x0), sy = (H - pt - pb) / (y1 - y0);
+    const X = x => pl + (x - x0) * sx, Y = y => H - pb - (y - y0) * sy;
+    const out = [], tb = [];
+    const txt = (x, y, s, a = 'middle', c = SOFT, fs = 10.5, st = '') => { const w = String(s).length * fs * .56, xa = a === 'start' ? x : a === 'end' ? x - w : x - w / 2; tb.push([xa - 2, y - fs, xa + w + 2, y + 3]); out.push(`<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${a}" font-size="${fs}" fill="${c}"${st ? ` style="${st}"` : ''}>${esc(s)}</text>`); };
+    const sxStep = o.xstep || nice(x1 - x0), syStep = o.ystep || nice(y1 - y0);
+    // сүлжээ
+    if(o.grid !== false){
+      const gx = sxStep <= 1 && (x1 - x0) <= 24 ? 1 : sxStep, gy = syStep <= 1 && (y1 - y0) <= 24 ? 1 : syStep;
+      for(let x = Math.ceil(x0 / gx) * gx; x <= x1 + 1e-9; x += gx) out.push(`<line x1="${X(x).toFixed(1)}" y1="${pt}" x2="${X(x).toFixed(1)}" y2="${H - pb}" stroke="#E3E7EE" stroke-width=".8"/>`);
+      for(let y = Math.ceil(y0 / gy) * gy; y <= y1 + 1e-9; y += gy) out.push(`<line x1="${pl}" y1="${Y(y).toFixed(1)}" x2="${W - pr}" y2="${Y(y).toFixed(1)}" stroke="#E3E7EE" stroke-width=".8"/>`);
+    }
+    if(o.shade && o.shade.g){ const {f, g, a, b} = o.shade, n = 60, cl = v => Math.max(y0, Math.min(y1, v)), ps = []; for(let i = 0; i <= n; i++){ const x = a + (b - a) * i / n; ps.push([X(x), Y(cl(f(x)))]); } for(let i = n; i >= 0; i--){ const x = a + (b - a) * i / n; ps.push([X(x), Y(cl(g(x)))]); } out.push(`<polygon points="${ps.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ')}" fill="rgba(31,79,191,.16)" stroke="none"/>`); }
+    else if(o.shade){ const {f, a, b} = o.shade, n = 60, ps = [[X(a), Y(Math.max(y0, Math.min(y1, 0)))]]; for(let i = 0; i <= n; i++){ const x = a + (b - a) * i / n; ps.push([X(x), Y(Math.max(y0, Math.min(y1, f(x))))]); } ps.push([X(b), Y(Math.max(y0, Math.min(y1, 0)))]); out.push(`<polygon points="${ps.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ')}" fill="rgba(31,79,191,.16)" stroke="none"/>`); }
+    // тэнхлэгүүд
+    const ax = Math.max(y0, Math.min(y1, 0)), ay = Math.max(x0, Math.min(x1, 0));
+    const arrowH = (x, y) => `<polygon points="${x},${y} ${x - 7},${y - 3.5} ${x - 7},${y + 3.5}" fill="${INK}"/>`, arrowV = (x, y) => `<polygon points="${x},${y} ${x - 3.5},${y + 7} ${x + 3.5},${y + 7}" fill="${INK}"/>`;
+    out.push(`<line x1="${pl - 4}" y1="${Y(ax).toFixed(1)}" x2="${W - pr + 6}" y2="${Y(ax).toFixed(1)}" stroke="${INK}" stroke-width="1.1"/>` + arrowH(W - pr + 8, Y(ax).toFixed(1)));
+    out.push(`<line x1="${X(ay).toFixed(1)}" y1="${H - pb + 4}" x2="${X(ay).toFixed(1)}" y2="${pt - 6}" stroke="${INK}" stroke-width="1.1"/>` + arrowV(X(ay).toFixed(1), pt - 8));
+    txt(W - pr + 8, Y(ax) - 7, o.xl || 'x', 'end', INK, 12, 'font-style:italic');
+    txt(X(ay) + 6, pt - 1, o.yl || 'y', 'start', INK, 12, 'font-style:italic');
+    for(let x = Math.ceil(x0 / sxStep) * sxStep; x <= x1 + 1e-9; x += sxStep){ if(Math.abs(x) < 1e-9) continue; const v = +x.toFixed(6); out.push(`<line x1="${X(x).toFixed(1)}" y1="${(Y(ax) - 3).toFixed(1)}" x2="${X(x).toFixed(1)}" y2="${(Y(ax) + 3).toFixed(1)}" stroke="${INK}"/>`); txt(X(x), Y(ax) + 13, (o.xfmt ? o.xfmt(v) : String(v)).replace('-', '−')); }
+    for(let y = Math.ceil(y0 / syStep) * syStep; y <= y1 + 1e-9; y += syStep){ if(Math.abs(y) < 1e-9) continue; const v = +y.toFixed(6); out.push(`<line x1="${(X(ay) - 3).toFixed(1)}" y1="${Y(y).toFixed(1)}" x2="${(X(ay) + 3).toFixed(1)}" y2="${Y(y).toFixed(1)}" stroke="${INK}"/>`); txt(X(ay) - 5, Y(y) + 3.5, String(v).replace('-', '−'), 'end'); }
+    txt(X(ay) - 5, Y(ax) + 13, 'O', 'end', INK, 11);
+    // асимптот
+    (o.vl || []).forEach(x => out.push(`<line x1="${X(x).toFixed(1)}" y1="${pt}" x2="${X(x).toFixed(1)}" y2="${H - pb}" stroke="#C68A12" stroke-width="1.2" stroke-dasharray="5 4"/>`));
+    (o.hl || []).forEach(y => out.push(`<line x1="${pl}" y1="${Y(y).toFixed(1)}" x2="${W - pr}" y2="${Y(y).toFixed(1)}" stroke="#C68A12" stroke-width="1.2" stroke-dasharray="5 4"/>`));
+    // муруйнууд
+    const COLORS = [ACC, '#C0392B', '#1C6B43', '#7A3FB0'];
+    (o.fns || []).forEach((g, gi) => {
+      const [a, b] = g.dom || [x0, x1], n = 240, col = g.color || COLORS[gi % 4]; let seg = [], segs = [];
+      for(let i = 0; i <= n; i++){ const x = a + (b - a) * i / n, y = g.f(x);
+        if(!isFinite(y) || y < y0 - (y1 - y0) * .02 || y > y1 + (y1 - y0) * .02){ if(seg.length > 1) segs.push(seg); seg = []; continue; }
+        if(seg.length && Math.abs(Y(y) - seg[seg.length - 1][1]) > H * .9){ segs.push(seg); seg = []; }
+        seg.push([X(x), Y(y)]); }
+      if(seg.length > 1) segs.push(seg);
+      segs.forEach(sg => out.push(`<polyline points="${sg.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="${col}" stroke-width="2"${g.dash ? ' stroke-dasharray="6 4"' : ''} stroke-linejoin="round"/>`));
+      if(g.label){ const lx = g.lx ?? (a + (b - a) * .82), ly = g.f(lx); if(isFinite(ly) && ly >= y0 && ly <= y1) txt(X(lx) + 4, Y(ly) - 6, g.label, 'start', col, 11.5, 'font-style:italic'); }
+    });
+    (o.segs || []).forEach(sg => out.push(`<polyline points="${sg.ps.map(p => [X(p[0]), Y(p[1])].map(v => v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="${sg.color || ACC}" stroke-width="${sg.w || 2}"${sg.dash ? ' stroke-dasharray="5 4"' : ''} stroke-linejoin="round"/>`));
+    (o.pts || []).forEach(q => { const [x, y] = q.p; if(q.guide){ out.push(`<polyline points="${X(x).toFixed(1)},${Y(ax).toFixed(1)} ${X(x).toFixed(1)},${Y(y).toFixed(1)} ${X(ay).toFixed(1)},${Y(y).toFixed(1)}" fill="none" stroke="${SOFT}" stroke-width="1" stroke-dasharray="3 3"/>`); }
+      out.push(`<circle cx="${X(x).toFixed(1)}" cy="${Y(y).toFixed(1)}" r="3.4" fill="${q.open ? '#FFFFFF' : (q.color || INK)}" stroke="${q.color || INK}" stroke-width="1.4"/>`);
+      if(q.label){ const d = q.dir || [1, 1], L = Math.hypot(d[0], d[1]); txt(X(x) + d[0] / L * 8, Y(y) - d[1] / L * 8 + 4, q.label, d[0] > .3 ? 'start' : d[0] < -.3 ? 'end' : 'middle', INK, 11.5, 'font-style:italic;font-weight:700'); } });
+    let bx0 = 0, by0 = 0, bx1 = W, by1 = H; tb.forEach(b => { bx0 = Math.min(bx0, b[0]); by0 = Math.min(by0, b[1]); bx1 = Math.max(bx1, b[2]); by1 = Math.max(by1, b[3]); });
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${bx0.toFixed(1)} ${by0.toFixed(1)} ${(bx1 - bx0).toFixed(1)} ${(by1 - by0).toFixed(1)}" width="${(bx1 - bx0).toFixed(0)}" height="${(by1 - by0).toFixed(0)}" font-family="'PT Sans', Arial, sans-serif" role="img" aria-label="Функцийн график">${out.join('')}</svg>`;
+  };
+  /* Утгын мужийг автоматаар сонгох: цэгүүдийг агуулах, тэгийг хамрах */
+  F.piFmt = v => { const k = Math.round(v / (Math.PI / 2)); if(k === 0) return '0'; const sg = k < 0 ? '−' : '', a = Math.abs(k); return a % 2 === 0 ? sg + (a / 2 === 1 ? '' : a / 2) + 'π' : sg + (a === 1 ? '' : a) + 'π/2'; };
+  F.range = (vals, padFrac = .15, minSpan = 4) => { let a = Math.min(0, ...vals), b = Math.max(0, ...vals); if(b - a < minSpan){ const m = (a + b) / 2; a = m - minSpan / 2; b = m + minSpan / 2; } const p = (b - a) * padFrac; return [Math.floor(a - p), Math.ceil(b + p)]; };
+
   window.FIG = F;
 })();

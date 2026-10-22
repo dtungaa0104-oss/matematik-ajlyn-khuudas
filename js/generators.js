@@ -30,6 +30,11 @@
   const NAMES = ['Сараа', 'Тэмүүлэн', 'Ану', 'Бат-Эрдэнэ', 'Номин', 'Төгөлдөр', 'Хулан', 'Мөнх-Очир', 'Солонго', 'Анар'];
   const nm = r => r.pick(NAMES);
   /* Геометрийн зураг: санамсаргүй тоо зарцуулахгүй тул кодын давтагдах чанарт нөлөөлөхгүй */
+  /* Шулууны график: y = kx + b, x ∈ [xa, xb] */
+  const plain = s => String(s).replace(/<[^>]+>/g, '');
+  const gLine = (k, b, o = {}) => F => { const xs = o.x || [-6, 6], ys = [k * xs[0] + b, k * xs[1] + b, ...(o.ys || [])].map(v => Math.max(-14, Math.min(14, v))); return F.plot({x: xs, y: F.range(ys), fns: [{f: x => k * x + b, label: o.label}], pts: o.pts || []}); };
+  /* Муруйн график: f-ийг [xa, xb] дээр, y мужийг утгуудаас автоматаар (±clip) */
+  const gCurve = (f, xa, xb, o = {}) => F => { const ys = []; for(let i = 0; i <= 60; i++){ const v = f(xa + (xb - xa) * i / 60); if(isFinite(v)) ys.push(Math.max(-(o.clip || 20), Math.min(o.clip || 20, v))); } (o.pts || []).forEach(q => ys.push(q.p[1])); return F.plot({x: [xa, xb], y: o.y || F.range(ys, .08), fns: [{f, label: o.label}, ...(o.fns || [])], pts: o.pts || [], vl: o.vl, hl: o.hl, shade: o.shade, xstep: o.xstep, xfmt: o.xfmt, ystep: o.ystep}); };
   const fg = (p, draw) => { const F = typeof window !== 'undefined' && window.FIG; if(p && F){ try { p.fig = draw(F); } catch(e){ if(window.FIG_DEBUG) window.FIG_DEBUG.push(String(e && e.stack || e).slice(0, 300)); } } return p; };
   const FR = {2: 'хоёрны', 3: 'гуравны', 4: 'дөрөвний', 5: 'тавны', 6: 'зургааны'};
 
@@ -328,10 +333,10 @@
   }, { wide: true });
   a7(10, '10.2', 'linf7', 'Шугаман функц, түүний график', NUM, (r, l) => {
     const k = r.nz(-4, 4), b = r.i(-8, 8);
-    if(l === 1){ const x = r.i(-5, 8); return num(`y = ${poly([[k, 'x'], [b, '']])} функцийн x = ${fmt(x)} үеийн утгыг ол.`, k * x + b); }
-    if(l === 2){ const K = r.pick([0.5, 1.5, 2, 2.5, 3, 4, -2]), x = r.nz(-6, 6) * 2; return num(`y = kx шууд пропорционал хамаарлын график (${fmt(x)}, ${fmt(K * x)}) цэгийг дайрдаг бол k-г ол.`, K); }
+    if(l === 1){ const x = r.i(-5, 8); return fg(num(`y = ${poly([[k, 'x'], [b, '']])} функцийн x = ${fmt(x)} үеийн утгыг ол.`, k * x + b), gLine(k, b, {x: [-6, 8], label: plain(`y = ${poly([[k, 'x'], [b, '']])}`)})); }
+    if(l === 2){ const K = r.pick([0.5, 1.5, 2, 2.5, 3, 4, -2]), x = r.nz(-6, 6) * 2; return fg(num(`y = kx шууд пропорционал хамаарлын график (${fmt(x)}, ${fmt(K * x)}) цэгийг дайрдаг бол k-г ол.`, K), F => { const xa = Math.min(-2, x - 2), xb = Math.max(2, x + 2); return F.plot({x: [xa, xb], y: F.range([K * xa, K * xb, K * x]), fns: [{f: t => K * t, label: 'y = kx'}], pts: [{p: [x, K * x], label: `(${fmt(x)}; ${fmt(K * x)})`, dir: [x > 0 ? -1 : 1, 1], guide: true}]}); }); }
     const x1 = r.i(-8, 0), x2 = r.i(1, 8), y1 = r.i(-8, 0), y2 = r.i(1, 8);
-    return num(`Координатын хавтгайд y = ${fmt(y1)}, y = ${fmt(y2)}, x = ${fmt(x1)}, x = ${fmt(x2)} шулуунуудыг зурахад тэдгээрээр хүрээлэгдсэн тэгш өнцөгт үүсэв. Түүний талбай хэд вэ?`, (x2 - x1) * (y2 - y1));
+    return fg(num(`Координатын хавтгайд y = ${fmt(y1)}, y = ${fmt(y2)}, x = ${fmt(x1)}, x = ${fmt(x2)} шулуунуудыг зурахад тэдгээрээр хүрээлэгдсэн тэгш өнцөгт үүсэв. Түүний талбай хэд вэ?`, (x2 - x1) * (y2 - y1)), F => { const X0 = x1 - 2, X1 = x2 + 2, Y0 = y1 - 2, Y1 = y2 + 2; return F.plot({x: [X0, X1], y: [Y0, Y1], segs: [{ps: [[X0, y1], [X1, y1]]}, {ps: [[X0, y2], [X1, y2]]}, {ps: [[x1, Y0], [x1, Y1]], color: '#C0392B'}, {ps: [[x2, Y0], [x2, Y1]], color: '#C0392B'}, {ps: [[x1, y1], [x2, y1], [x2, y2], [x1, y2], [x1, y1]], color: '#1C6B43', w: 3}]}); });
   }, { wide: true });
   a7(11, '11.1', 'sim7', 'Дүрсийн төсөө', NUM, (r, l) => {
     const k = r.pick([2, 3, 4, 1.5, 2.5]), a = r.i(2, 12) * 2, b = r.i(2, 12) * 2;
@@ -534,18 +539,19 @@
   }, { wide: true });
   a8(5, 81, 'linf', 'Шугаман функц, түүний график, шулууны налалт', NUM, (r, l) => {
     const k = r.nz(-5, 5), b = r.i(-9, 9);
-    if(l === 1){ const x = r.i(-6, 6); return num(`y = ${poly([[k, 'x'], [b, '']])} функцийн x = ${fmt(x)} үеийн утгыг ол.`, k * x + b); }
+    if(l === 1){ const x = r.i(-6, 6); return fg(num(`y = ${poly([[k, 'x'], [b, '']])} функцийн x = ${fmt(x)} үеийн утгыг ол.`, k * x + b), gLine(k, b, {label: plain(`y = ${poly([[k, 'x'], [b, '']])}`)})); }
     if(l === 2){ const x1 = r.i(-6, 6), x2 = r.i(-6, 6), y1 = r.i(-9, 9), y2 = r.i(-9, 9); if(x1 === x2) return null;
-      return num(`Шулуун P(${fmt(x1)}, ${fmt(y1)}), Q(${fmt(x2)}, ${fmt(y2)}) цэгүүдээр дайрч гардаг. Түүний налалт хэд вэ?`, (y2 - y1) / (x2 - x1), frac(y2 - y1, x2 - x1)); }
+      return fg(num(`Шулуун P(${fmt(x1)}, ${fmt(y1)}), Q(${fmt(x2)}, ${fmt(y2)}) цэгүүдээр дайрч гардаг. Түүний налалт хэд вэ?`, (y2 - y1) / (x2 - x1), frac(y2 - y1, x2 - x1)), F => { const kk = (y2 - y1) / (x2 - x1), xa = Math.min(x1, x2) - 2, xb = Math.max(x1, x2) + 2; return F.plot({x: [Math.min(xa, -1), Math.max(xb, 1)], y: F.range([y1, y2, y1 + kk * (xa - x1), y1 + kk * (xb - x1)].map(v => Math.max(-14, Math.min(14, v)))), fns: [{f: t => y1 + kk * (t - x1)}], pts: [{p: [x1, y1], label: 'P', dir: [-1, 1]}, {p: [x2, y2], label: 'Q', dir: [1, 1]}]}); }); }
     if(b === 0) return null;
-    return num(`y = ${poly([[k, 'x'], [b, '']])} шулуун Ox тэнхлэгийг огтлох цэгийн абсциссыг ол.`, -b / k, frac(-b, k));
+    return fg(num(`y = ${poly([[k, 'x'], [b, '']])} шулуун Ox тэнхлэгийг огтлох цэгийн абсциссыг ол.`, -b / k, frac(-b, k)), gLine(k, b, {x: [Math.min(-6, -b / k - 2), Math.max(6, -b / k + 2)], label: plain(`y = ${poly([[k, 'x'], [b, '']])}`)}));
   }, { wide: true });
   a8(5, 90, 'parab', 'y = ax² функц, түүний график', 'Хариуг тоо, бутархай; хоёр шийдийг ; тэмдгээр бичнэ.', (r, l) => {
     const a = r.pick([1, 2, 3, -1, -2, 0.5]);
-    if(l === 1){ const x = r.nz(-5, 5); return num(`y = ${a === 1 ? '' : a === -1 ? '−' : fmt(a)}x² функцийн x = ${fmt(x)} үеийн утгыг ол.`, a * x * x); }
-    if(l === 2){ const p = r.nz(-4, 4), q = r.nz(-20, 20); return num(`(${fmt(p)}, ${fmt(q)}) цэгийг дайрах y = ax² параболын a-г ол.`, q / (p * p), frac(q, p * p)); }
+    const pq = (A, xm, extra = {}) => F => F.plot({x: [-xm, xm], y: F.range([A * xm * xm, 0, ...(extra.ys || [])], .1), fns: [{f: x => A * x * x, label: extra.label}, ...(extra.fns || [])], pts: extra.pts || []});
+    if(l === 1){ const x = r.nz(-5, 5); return fg(num(`y = ${a === 1 ? '' : a === -1 ? '−' : fmt(a)}x² функцийн x = ${fmt(x)} үеийн утгыг ол.`, a * x * x), pq(a, Math.max(4, Math.abs(x) + 1), {label: `y = ${a === 1 ? '' : a === -1 ? '−' : fmt(a)}x²`})); }
+    if(l === 2){ const p = r.nz(-4, 4), q = r.nz(-20, 20); return fg(num(`(${fmt(p)}, ${fmt(q)}) цэгийг дайрах y = ax² параболын a-г ол.`, q / (p * p), frac(q, p * p)), pq(q / (p * p), Math.abs(p) + 1.5, {label: 'y = ax²', pts: [{p: [p, q], label: `(${fmt(p)}; ${fmt(q)})`, dir: [p > 0 ? 1 : -1, q > 0 ? -.4 : .4], guide: true}]})); }
     const t = r.i(1, 6), A = r.pick([1, 2, 3, -1, -2]);
-    return list(`y = ${A === 1 ? '' : A === -1 ? '−' : fmt(A)}x² парабол ба y = ${fmt(A * t * t)} шулууны огтлолцлын цэгүүдийн абсциссыг ол.`, [-t, t]);
+    return fg(list(`y = ${A === 1 ? '' : A === -1 ? '−' : fmt(A)}x² парабол ба y = ${fmt(A * t * t)} шулууны огтлолцлын цэгүүдийн абсциссыг ол.`, [-t, t]), pq(A, t + 1.5, {fns: [{f: () => A * t * t, color: '#C0392B'}], pts: [{p: [-t, A * t * t], color: '#C0392B'}, {p: [t, A * t * t], color: '#C0392B'}]}));
   }, { wide: true });
 
   // VI бүлэг
@@ -618,9 +624,10 @@
   }, { wide: true });
   a8(8, 152, 'speed', 'Зам-хугацааны график', 'Хариуг зөвхөн тоогоор бичнэ.', (r, l) => {
     const v = r.i(4, 20) * 5, t = r.i(1, 6);
-    if(l === 1) return num(`Машин ${v * t} км замыг ${t} цагт туулсан бол дундаж хурд хэдэн км/ц вэ?`, v);
-    if(l === 2){ const m = r.pick([30, 45, 90, 120, 150]); return num(`Машин тогтмол ${v} км/ц хурдтай ${m} минут явбал хэдэн км зам туулах вэ?`, v * m / 60); }
-    const v2 = r.i(4, 20) * 5; return num(`Хоорондоо ${(v + v2) * t} км зайтай хоёр хотоос ${v} км/ц ба ${v2} км/ц хурдтай хоёр машин нэгэн зэрэг угталцан гарав. Хэдэн цагийн дараа уулзах вэ?`, t);
+    const st = (T, fns, pts, ymax) => F => F.plot({x: [0, T], y: [0, ymax], xl: 't, ц', yl: 's, км', fns, pts, W: 260});
+    if(l === 1) return fg(num(`Машин ${v * t} км замыг ${t} цагт туулсан бол дундаж хурд хэдэн км/ц вэ?`, v), st(t + 1, [{f: x => v * x, dom: [0, t]}], [{p: [t, v * t], guide: true}], v * t * 1.25));
+    if(l === 2){ const m = r.pick([30, 45, 90, 120, 150]); return fg(num(`Машин тогтмол ${v} км/ц хурдтай ${m} минут явбал хэдэн км зам туулах вэ?`, v * m / 60), st(3, [{f: x => v * x, dom: [0, 3], label: `${v} км/ц`, lx: 1.6}], [], v * 3.2)); }
+    const v2 = r.i(4, 20) * 5, D = (v + v2) * t; return fg(num(`Хоорондоо ${D} км зайтай хоёр хотоос ${v} км/ц ба ${v2} км/ц хурдтай хоёр машин нэгэн зэрэг угталцан гарав. Хэдэн цагийн дараа уулзах вэ?`, t), st(t * 1.6 + 1, [{f: x => v * x, dom: [0, D / v], label: 'I'}, {f: x => D - v2 * x, dom: [0, D / v2], label: 'II', lx: t * .3}], [{p: [t, v * t], open: true}], D * 1.1));
   }, { wide: true });
   a8(8, 158, 'circle8', 'Тойргийн урт, дугуйн талбай', 'Хариуг π-гийн коэффициентоор бичнэ (36π бол 36).', (r, l) => {
     const R0 = r.i(1, 15);
@@ -784,16 +791,17 @@
   a9(5, 75, 'gsys9', 'Шугаман тэгшитгэлийн системийг графикийн аргаар бодох', 'Огтлолцлын цэгийг x; y дарааллаар, эсвэл шийдийн тоог бичнэ.', (r, l) => {
     const x = r.i(-6, 6), y = r.i(-6, 6), k1 = r.nz(-4, 4), k2 = r.nz(-4, 4);
     if(l < 3){ if(k1 === k2) return null; const L = (k, b) => `y = ${poly([[k, 'x'], [b, '']])}`;
-      return tup(`${L(k1, y - k1 * x)} ба ${L(k2, y - k2 * x)} шулуунуудын огтлолцлын цэгийг ол.`, [x, y]); }
+      return fg(tup(`${L(k1, y - k1 * x)} ба ${L(k2, y - k2 * x)} шулуунуудын огтлолцлын цэгийг ол.`, [x, y]), F => F.plot({x: [Math.min(-2, x - 4), Math.max(2, x + 4)], y: [Math.min(-2, y - 5), Math.max(2, y + 5)], fns: [{f: t => k1 * t + y - k1 * x, label: '1'}, {f: t => k2 * t + y - k2 * x, label: '2', lx: x - 3}]})); }
     const a = r.nz(-4, 4), b = r.nz(-4, 4), m = r.pick([1, 2, 3, -1, -2]), c1 = r.i(-9, 9), c2 = r.i(-9, 9), same = r.i(0, 2);
     const sol = same === 0 ? 1 : (c1 * m === c2 ? 'inf' : 0); if(sol === 'inf') return null;
     const [A2, B2] = same === 0 ? [r.nz(-4, 4), r.nz(-4, 4)] : [a * m, b * m]; if(same === 0 && a * B2 === b * A2) return null;
-    return num(`<span class="sys"><span>${poly([[a, 'x'], [b, 'y']])} = ${fmt(c1)}</span><span>${poly([[A2, 'x'], [B2, 'y']])} = ${fmt(c2)}</span></span> системийн шулуунууд хэдэн ерөнхий цэгтэй вэ? (0 эсвэл 1)`, sol);
+    return fg(num(`<span class="sys"><span>${poly([[a, 'x'], [b, 'y']])} = ${fmt(c1)}</span><span>${poly([[A2, 'x'], [B2, 'y']])} = ${fmt(c2)}</span></span> системийн шулуунууд хэдэн ерөнхий цэгтэй вэ? (0 эсвэл 1)`, sol), F => F.plot({x: [-8, 8], y: [-8, 8], fns: [{f: t => (c1 - a * t) / b, label: '1', lx: 4}, {f: t => (c2 - A2 * t) / B2, label: '2', lx: -6}]}));
   }, { wide: true });
   a9(5, 77, 'qgraph9', 'Квадрат функцийн график', 'Хариуг тоогоор, хоёр утгыг ; тэмдгээр бичнэ.', (r, l) => {
-    if(l === 1){ const b = r.i(-6, 6), c = r.i(-9, 9), x = r.i(-4, 4); return num(`y = ${poly([[1, 'x²'], [b, 'x'], [c, '']])} функцийн x = ${fmt(x)} үеийн утгыг ол.`, x * x + b * x + c); }
-    if(l === 2){ const r1 = r.i(-6, 6), r2 = r.i(-6, 6); if(r1 === r2) return null; return list(`y = ${poly([[1, 'x²'], [-(r1 + r2), 'x'], [r1 * r2, '']])} функцийн график Ox тэнхлэгийг огтлох цэгүүдийн абсциссыг ол.`, [r1, r2]); }
-    const h = r.nz(-5, 5), k = r.i(-9, 9); return num(`y = ${poly([[1, 'x²'], [-2 * h, 'x'], [h * h + k, '']])} параболын тэгш хэмийн тэнхлэг x = x${sub(0)} бол x${sub(0)}-ийг ол.`, h);
+    const qp = (B, C) => F => { const h0 = -B / 2, k0 = C - B * B / 4, w = Math.max(3.5, Math.sqrt(Math.max(0, -k0)) + 1.5), xa = Math.min(h0 - w, -1), xb = Math.max(h0 + w, 1); return F.plot({x: [Math.floor(xa), Math.ceil(xb)], y: F.range([k0, k0 + w * w * .85, 0], .06), fns: [{f: x => x * x + B * x + C}]}); };
+    if(l === 1){ const b = r.i(-6, 6), c = r.i(-9, 9), x = r.i(-4, 4); return fg(num(`y = ${poly([[1, 'x²'], [b, 'x'], [c, '']])} функцийн x = ${fmt(x)} үеийн утгыг ол.`, x * x + b * x + c), qp(b, c)); }
+    if(l === 2){ const r1 = r.i(-6, 6), r2 = r.i(-6, 6); if(r1 === r2) return null; return fg(list(`y = ${poly([[1, 'x²'], [-(r1 + r2), 'x'], [r1 * r2, '']])} функцийн график Ox тэнхлэгийг огтлох цэгүүдийн абсциссыг ол.`, [r1, r2]), qp(-(r1 + r2), r1 * r2)); }
+    const h = r.nz(-5, 5), k = r.i(-9, 9); return fg(num(`y = ${poly([[1, 'x²'], [-2 * h, 'x'], [h * h + k, '']])} параболын тэгш хэмийн тэнхлэг x = x${sub(0)} бол x${sub(0)}-ийг ол.`, h), qp(-2 * h, h * h + k));
   }, { wide: true });
   a9(5, 79, 'inv9', 'Шугаман функцийн урвуу функц', NUM, (r, l) => {
     const a = r.pick([2, 3, 4, 5, -2, -3, 0.5]), b = r.i(-9, 9), y = r.i(-6, 8), x = (y - b) / a;
@@ -879,10 +887,11 @@
   }, { wide: true, timeval: true });
   a9(8, 135, 'vt9', 'Хурд-хугацааны график', 'Хариуг тоогоор бичнэ (м/с², м).', (r, l) => {
     const v0 = r.i(0, 20), dv = r.nz(-4, 4) * r.i(1, 3), t = r.i(2, 12) * 2, v1 = v0 + dv * t / 2; if(v1 < 0) return null;
-    if(l === 1) return num(`Машины хурд ${t} секундэд ${v0} м/с-ээс ${fmt(v1)} м/с болж жигд өөрчлөгдөв. Хурдатгалыг ол.`, (v1 - v0) / t, pretty((v1 - v0) / t));
-    if(l === 2) return num(`Машины хурд ${t} секундэд ${v0} м/с-ээс ${fmt(v1)} м/с болж жигд өөрчлөгдөв. Энэ хугацаанд явсан замыг ол.`, (v0 + v1) / 2 * t);
+    const vg = F => F.plot({x: [0, t + 2], y: [0, Math.max(v0, v1) * 1.25 + 2], xl: 't, с', yl: 'v, м/с', W: 260, segs: [{ps: [[0, v0], [t, v1]], w: 2.4}, {ps: [[t, 0], [t, v1]], dash: true, color: '#5A6275', w: 1}], shade: l === 2 ? {f: x => x <= t ? v0 + (v1 - v0) * x / t : 0, a: 0, b: t} : null, pts: [{p: [0, v0]}, {p: [t, v1]}]});
+    if(l === 1) return fg(num(`Машины хурд ${t} секундэд ${v0} м/с-ээс ${fmt(v1)} м/с болж жигд өөрчлөгдөв. Хурдатгалыг ол.`, (v1 - v0) / t, pretty((v1 - v0) / t)), vg);
+    if(l === 2) return fg(num(`Машины хурд ${t} секундэд ${v0} м/с-ээс ${fmt(v1)} м/с болж жигд өөрчлөгдөв. Энэ хугацаанд явсан замыг ол.`, (v0 + v1) / 2 * t), vg);
     const v = r.i(5, 25), t1 = r.i(1, 6) * 10, t2 = r.i(1, 8) * 10, t3 = r.i(1, 6) * 10;
-    return num(`Машин тайван байдлаас ${t1} с-д жигд хурдсаж ${v} м/с хүрээд, ${t2} с тогтмол хурдтай яваад, ${t3} с-д жигд удааширч зогсов. Нийт замын уртыг ол.`, v * (t1 / 2 + t2 + t3 / 2));
+    return fg(num(`Машин тайван байдлаас ${t1} с-д жигд хурдсаж ${v} м/с хүрээд, ${t2} с тогтмол хурдтай яваад, ${t3} с-д жигд удааширч зогсов. Нийт замын уртыг ол.`, v * (t1 / 2 + t2 + t3 / 2)), F => { const T = t1 + t2 + t3, fv = x => x < t1 ? v * x / t1 : x < t1 + t2 ? v : Math.max(0, v * (T - x) / t3); return F.plot({x: [0, T + 5], y: [0, v * 1.3 + 1], xl: 't, с', yl: 'v, м/с', W: 270, xstep: 10, segs: [{ps: [[0, 0], [t1, v], [t1 + t2, v], [T, 0]], w: 2.4}], shade: {f: fv, a: 0, b: T}}); });
   }, { wide: true });
   a9(8, 137, 'fx9', 'Валют шилжүүлэх', 'Хариуг тоогоор бичнэ (шаардвал 0.01 хүртэл тоймлоно).', (r, l) => {
     const [cur, rate] = r.pick([['ам.доллар', 3400], ['евро', 3700], ['юань', 470], ['вон', 2.5], ['рубль', 38], ['иен', 23]]), n = r.i(2, 60) * (rate < 10 ? 1000 : 10);
@@ -1001,16 +1010,16 @@
   }, { wide: true });
   a10(4, '4.2', 37, 'slope10', 'Шулууны налалт', FRN, (r, l) => {
     const x1 = r.i(-8, 8), y1 = r.i(-8, 8), x2 = r.i(-8, 8), y2 = r.i(-8, 8); if(x1 === x2) return null;
-    if(l === 1) return num(`Шулуун дээр ${PT(x1, y1)} ба ${PT(x2, y2)} цэгүүд оршдог. Шулууны налалт k = ?`, (y2 - y1) / (x2 - x1), frac(y2 - y1, x2 - x1));
+    if(l === 1) return fg(num(`Шулуун дээр ${PT(x1, y1)} ба ${PT(x2, y2)} цэгүүд оршдог. Шулууны налалт k = ?`, (y2 - y1) / (x2 - x1), frac(y2 - y1, x2 - x1)), F => { const kk = (y2 - y1) / (x2 - x1), xa = Math.min(x1, x2, 0) - 2, xb = Math.max(x1, x2, 0) + 2; return gCurve(t => y1 + kk * (t - x1), xa, xb, {clip: 14, pts: [{p: [x1, y1], label: 'A', dir: [-1, 1]}, {p: [x2, y2], label: 'B', dir: [1, 1]}]})(F); });
     const k = r.nz(-4, 4), d = r.nz(-5, 5);
     if(l === 2) return num(`${fmt(k)} налалттай шулуун дээр ${PT(x1, y1)} ба ${PT(x1 + d, 't')} цэгүүд оршдог бол t-ийн утгыг ол.`, y1 + k * d);
-    const a = r.nz(-6, 6), b = r.nz(-6, 6), c = r.i(-9, 9); return num(`${poly([[a, 'x'], [b, 'y']])} ${c < 0 ? '−' : '+'} ${Math.abs(c)} = 0 шулууны налалтыг ол.`, -a / b, frac(-a, b));
+    const a = r.nz(-6, 6), b = r.nz(-6, 6), c = r.i(-9, 9); return fg(num(`${poly([[a, 'x'], [b, 'y']])} ${c < 0 ? '−' : '+'} ${Math.abs(c)} = 0 шулууны налалтыг ол.`, -a / b, frac(-a, b)), gCurve(t => (-a * t - c) / b, -7, 7, {clip: 12}));
   }, { wide: true });
   a10(4, '4.3', 38, 'line10', 'Шулууны тэгшитгэл', 'y = kx + b шулууны k; b-г бичнэ.', (r, l) => {
     const k = r.nz(-5, 5), b = r.i(-9, 9), x1 = r.i(-5, 5), x2 = r.i(-5, 5); if(x1 === x2) return null; const yl = w => `y = ${poly([[w[0], 'x'], [w[1], '']])}`;
     if(l === 1) return tup(`${fmt(k)} налалттай, ${PT(x1, k * x1 + b)} цэгийг дайрсан шулууны тэгшитгэлийг y = kx + b хэлбэрт бич. k; b-г ол.`, [k, b], yl);
-    if(l === 2) return tup(`${PT(x1, k * x1 + b)} ба ${PT(x2, k * x2 + b)} цэгүүдийг дайрсан шулууны тэгшитгэлийг y = kx + b хэлбэрт бич. k; b-г ол.`, [k, b], yl);
-    const b0 = r.i(-9, 9); if(b0 === b) return null; return tup(`y = ${poly([[k, 'x'], [b0, '']])} шулуунтай параллел, ${PT(x1, k * x1 + b)} цэгийг дайрсан шулууны тэгшитгэлийн k; b-г ол.`, [k, b], yl);
+    if(l === 2) return fg(tup(`${PT(x1, k * x1 + b)} ба ${PT(x2, k * x2 + b)} цэгүүдийг дайрсан шулууны тэгшитгэлийг y = kx + b хэлбэрт бич. k; b-г ол.`, [k, b], yl), F => { const ys = [k * x1 + b, k * x2 + b]; return F.plot({x: [Math.min(x1, x2, 0) - 2, Math.max(x1, x2, 0) + 2], y: F.range(ys), pts: [{p: [x1, ys[0]], label: 'A', dir: [-1, 1]}, {p: [x2, ys[1]], label: 'B', dir: [1, 1]}]}); });
+    const b0 = r.i(-9, 9); if(b0 === b) return null; return fg(tup(`y = ${poly([[k, 'x'], [b0, '']])} шулуунтай параллел, ${PT(x1, k * x1 + b)} цэгийг дайрсан шулууны тэгшитгэлийн k; b-г ол.`, [k, b], yl), gCurve(t => k * t + b0, -6, 6, {clip: 14, label: plain(`y = ${poly([[k, 'x'], [b0, '']])}`), pts: [{p: [x1, k * x1 + b], label: 'M', dir: [1, 1], color: '#C0392B'}]}));
   }, { wide: true });
   a10(4, '4.4', 41, 'circle10', 'Координатын эх дээр төвтэй тойргийн тэгшитгэл', 'Тоогоор бичнэ.', (r, l) => {
     if(l === 1){ const R0 = r.i(2, 15); return num(`x² + y² = ${R0 * R0} тойргийн радиусыг ол.`, R0); }
@@ -1027,32 +1036,33 @@
   }, { wide: true });
   a10(5, '5.2', 46, 'quadf10', 'Квадрат функц', 'Оройн цэгийг x; y дарааллаар, эсвэл тоогоор бичнэ.', (r, l) => {
     const a = r.pick([1, -1, 2, -2, 3]), h = r.nz(-5, 5), k = r.i(-9, 9), F = `y = ${poly([[a, 'x²'], [-2 * a * h, 'x'], [a * h * h + k, '']])}`;
-    if(l === 1) return tup(`${F} параболын оройн цэгийг ол.`, [h, k]);
-    if(l === 2) return num(`${F} функцийн утга ${a > 0 ? 'хамгийн багадаа' : 'хамгийн ихдээ'} хэд байх вэ?`, k);
+    const qg = gCurve(x => a * (x - h) ** 2 + k, Math.min(h - 3.5, -1), Math.max(h + 3.5, 1), {clip: 22});
+    if(l === 1) return fg(tup(`${F} параболын оройн цэгийг ол.`, [h, k]), qg);
+    if(l === 2) return fg(num(`${F} функцийн утга ${a > 0 ? 'хамгийн багадаа' : 'хамгийн ихдээ'} хэд байх вэ?`, k), qg);
     const r1 = r.i(-6, 6), r2 = r.i(-6, 6), A = r.pick([1, -1, 2]); if(r1 === r2) return null;
-    return list(`y = ${poly([[A, 'x²'], [-A * (r1 + r2), 'x'], [A * r1 * r2, '']])} функцийн график Ox тэнхлэгийг огтлох цэгүүдийн абсциссыг ол.`, [r1, r2]);
+    return fg(list(`y = ${poly([[A, 'x²'], [-A * (r1 + r2), 'x'], [A * r1 * r2, '']])} функцийн график Ox тэнхлэгийг огтлох цэгүүдийн абсциссыг ол.`, [r1, r2]), gCurve(x => A * (x - r1) * (x - r2), Math.min(r1, r2) - 2, Math.max(r1, r2) + 2, {clip: 80}));
   }, { wide: true });
   a10(5, '5.3', 58, 'hyp10', 'y = a/x функц', FRN, (r, l) => {
     const a = r.nz(-12, 12), x = r.nz(-6, 6);
-    if(l === 1) return num(`y = ${fmt(a)}/x функцийн x = ${fmt(x)} үеийн утгыг ол.`, a / x, frac(a, x));
-    if(l === 2) return num(`y = a/x функцийн график ${PT(x, a)} цэгийг дайрдаг бол a-г ол.`, a * x);
-    const b = r.nz(-6, 6), c = r.nz(-6, 6); return num(`y = ${fmt(a)}/(${poly([[1, 'x'], [b, '']])}) ${c < 0 ? '−' : '+'} ${Math.abs(c)} функцийн хэвтээ асимптот y = m бол m-ийг ол.`, c);
+    if(l === 1) return fg(num(`y = ${fmt(a)}/x функцийн x = ${fmt(x)} үеийн утгыг ол.`, a / x, frac(a, x)), gCurve(t => a / t, -7, 7, {y: [-8, 8], label: `y = ${fmt(a)}/x`}));
+    if(l === 2) return fg(num(`y = a/x функцийн график ${PT(x, a)} цэгийг дайрдаг бол a-г ол.`, a * x), gCurve(t => a * x / t, -7, 7, {y: [-13, 13], pts: [{p: [x, a], label: 'A', dir: [1, 1], guide: true}]}));
+    const b = r.nz(-6, 6), c = r.nz(-6, 6); return fg(num(`y = ${fmt(a)}/(${poly([[1, 'x'], [b, '']])}) ${c < 0 ? '−' : '+'} ${Math.abs(c)} функцийн хэвтээ асимптот y = m бол m-ийг ол.`, c), gCurve(t => a / (t + b) + c, -b - 7, -b + 7, {y: [c - 9, c + 9]}));
   }, { wide: true });
   a10(5, '5.4', 60, 'powf10', 'y = axⁿ хэлбэрийн функцийн график', FRN, (r, l) => {
     const a = r.pick([1, 2, 3, -1, -2, 0.5]), n = r.pick([2, 3, 4]), x = r.nz(-3, 3);
-    if(l === 1) return num(`y = ${a === 1 ? '' : a === -1 ? '−' : fmt(a)}x${sup(n)} функцийн x = ${fmt(x)} үеийн утгыг ол.`, a * x ** n);
-    const p = r.pick([-3, -2, 2, 3]), q = r.nz(-40, 40), N = r.pick([2, 3]); return num(`y = ax${sup(N)} функцийн график ${PT(p, q)} цэгийг дайрдаг бол a-г ол.`, q / p ** N, frac(q, p ** N));
+    if(l === 1) return fg(num(`y = ${a === 1 ? '' : a === -1 ? '−' : fmt(a)}x${sup(n)} функцийн x = ${fmt(x)} үеийн утгыг ол.`, a * x ** n), gCurve(t => a * t ** n, -3.5, 3.5, {clip: 60}));
+    const p = r.pick([-3, -2, 2, 3]), q = r.nz(-40, 40), N = r.pick([2, 3]); return fg(num(`y = ax${sup(N)} функцийн график ${PT(p, q)} цэгийг дайрдаг бол a-г ол.`, q / p ** N, frac(q, p ** N)), gCurve(t => q / p ** N * t ** N, -3.8, 3.8, {clip: 60, pts: [{p: [p, q], label: 'A', dir: [p > 0 ? 1 : -1, 0], guide: true}]}));
   }, { wide: true });
   a10(5, '5.5', 64, 'expf10', 'y = aˣ функцийн график', FRN, (r, l) => {
     const a = r.pick([2, 3, 4, 5]), x = r.i(-3, 4);
-    if(l === 1) return num(`y = ${a}${sup('x')} функцийн x = ${fmt(x)} үеийн утгыг ол.`, a ** x, x >= 0 ? fmt(a ** x) : '1/' + a ** -x);
-    if(l === 2) return num(`y = (1/${a})${sup('x')} функцийн x = ${fmt(x)} үеийн утгыг ол.`, a ** -x, -x >= 0 ? fmt(a ** -x) : '1/' + a ** x);
-    const b = r.nz(-5, 5); return num(`y = ${a}${sup('x')} ${b < 0 ? '−' : '+'} ${Math.abs(b)} функцийн график Oy тэнхлэгийг огтлох цэгийн ординатыг ол.`, 1 + b);
+    if(l === 1) return fg(num(`y = ${a}${sup('x')} функцийн x = ${fmt(x)} үеийн утгыг ол.`, a ** x, x >= 0 ? fmt(a ** x) : '1/' + a ** -x), gCurve(t => a ** t, -3, 2.6, {y: [-1, 10], label: `y = ${a}ˣ`, hl: [0]}));
+    if(l === 2) return fg(num(`y = (1/${a})${sup('x')} функцийн x = ${fmt(x)} үеийн утгыг ол.`, a ** -x, -x >= 0 ? fmt(a ** -x) : '1/' + a ** x), gCurve(t => a ** -t, -2.6, 3, {y: [-1, 10]}));
+    const b = r.nz(-5, 5); return fg(num(`y = ${a}${sup('x')} ${b < 0 ? '−' : '+'} ${Math.abs(b)} функцийн график Oy тэнхлэгийг огтлох цэгийн ординатыг ол.`, 1 + b), gCurve(t => a ** t + b, -3, 2.2, {y: [Math.min(b - 2, -2), Math.max(b + 9, 3)], hl: [b]}));
   }, { wide: true });
   a10(5, '5.6', 65, 'tan10', 'Муруйн шүргэгч, шүргэгчийн налалт', NUM, (r, l) => {
     const a = r.pick([1, 2, -1, 0.5]), x0 = r.i(-3, 3);
-    if(l === 1){ const dx = r.nz(-3, 3); return num(`y = ${poly([[a, 'x²']])} параболын ${PT(x0, a * x0 * x0)} ба ${PT(x0 + dx, a * (x0 + dx) ** 2)} цэгүүдийг дайрсан огтлогчийн налалтыг ол.`, a * (2 * x0 + dx)); }
-    const b = r.i(-5, 5), c = r.i(-5, 5); return num(`y = ${poly([[a, 'x²'], [b, 'x'], [c, '']])} параболын ${PT(x0, a * x0 * x0 + b * x0 + c)} цэг дээрх шүргэгчийн налалтыг ол. (Шүргэгчийн налалт = 2ax₀ + b)`, 2 * a * x0 + b);
+    if(l === 1){ const dx = r.nz(-3, 3); return fg(num(`y = ${poly([[a, 'x²']])} параболын ${PT(x0, a * x0 * x0)} ба ${PT(x0 + dx, a * (x0 + dx) ** 2)} цэгүүдийг дайрсан огтлогчийн налалтыг ол.`, a * (2 * x0 + dx)), F => { const s = a * (2 * x0 + dx), xa = Math.min(x0, x0 + dx) - 2, xb = Math.max(x0, x0 + dx) + 2; return gCurve(t => a * t * t, Math.min(xa, -1), Math.max(xb, 1), {clip: 30, fns: [{f: t => a * x0 * x0 + s * (t - x0), color: '#C0392B', dash: true}], pts: [{p: [x0, a * x0 * x0], label: 'A', dir: [-1, 1]}, {p: [x0 + dx, a * (x0 + dx) ** 2], label: 'B', dir: [1, 1]}]})(F); }); }
+    const b = r.i(-5, 5), c = r.i(-5, 5); return fg(num(`y = ${poly([[a, 'x²'], [b, 'x'], [c, '']])} параболын ${PT(x0, a * x0 * x0 + b * x0 + c)} цэг дээрх шүргэгчийн налалтыг ол. (Шүргэгчийн налалт = 2ax₀ + b)`, 2 * a * x0 + b), F => { const f = t => a * t * t + b * t + c, y0 = f(x0), s = 2 * a * x0 + b; return gCurve(f, x0 - 3.5, x0 + 3.5, {clip: 30, fns: [{f: t => y0 + s * (t - x0), color: '#C0392B', dash: true}], pts: [{p: [x0, y0], label: 'M', dir: [1, -1]}]})(F); });
   }, { wide: true });
 
   // VI
@@ -1306,8 +1316,9 @@
   }, { wide: true });
   a11(1, '1.3', 14, 'qgr11', 'Квадрат тэнцэтгэл бишийг графикийн аргаар бодох', 'Бүхэл тоогоор бичнэ.', (r, l) => {
     const r1 = r.i(-8, 6), r2 = r1 + r.i(2, 9), a = l === 2 ? r.pick([-1, -2, -3]) : r.pick([1, -1, 2, -2]), F = `y = ${poly([[a, 'x²'], [-a * (r1 + r2), 'x'], [a * r1 * r2, '']])}`;
-    if(l === 1) return list(`${F} функцийн график Ox тэнхлэгийг огтлох цэгүүдийн абсциссыг ол.`, [r1, r2]);
-    if(l === 2) return num(`${F} функцийн график Ox тэнхлэгээс дээш (y > 0) оршдог хэсэгт хэдэн бүхэл x харгалзах вэ?`, r2 - r1 - 1);
+    const qg = gCurve(x => a * (x - r1) * (x - r2), Math.min(r1 - 2, -1), Math.max(r2 + 2, 1), {clip: 120, xstep: (r2 - r1) > 8 ? 2 : 1});
+    if(l === 1) return fg(list(`${F} функцийн график Ox тэнхлэгийг огтлох цэгүүдийн абсциссыг ол.`, [r1, r2]), qg);
+    if(l === 2) return fg(num(`${F} функцийн график Ox тэнхлэгээс дээш (y > 0) оршдог хэсэгт хэдэн бүхэл x харгалзах вэ?`, r2 - r1 - 1), qg);
     const k = r.i(1, 6); return num(`x² − ${2 * k}x + m > 0 тэнцэтгэл биш бүх бодит x-ийн хувьд биелэх m-ийн хамгийн бага бүхэл утгыг ол.`, k * k + 1);
   }, { wide: true });
 
@@ -1356,8 +1367,8 @@
   }, { wide: true });
   a11(3, '3.6', 55, 'mono11', 'Өсөх ба буурах функц', 'Тоогоор бичнэ.', (r, l) => {
     const a = r.pick([1, -1, 2, -2]), h = r.nz(-6, 6), k = r.i(-9, 9), F = `f(x) = ${poly([[a, 'x²'], [-2 * a * h, 'x'], [a * h * h + k, '']])}`;
-    if(l < 3) return num(`${F} функц ${a > 0 ? '[m, +∞[ завсарт өсөх' : ']−∞, m] завсарт өсөх'} бол m-ийг ол.`, h);
-    const kk = r.nz(-5, 5), b = r.i(-9, 9); return num(`f(x) = ${poly([[kk, 'x'], [b, '']])} функц өсөх бол 1, буурах бол −1 гэж бич.`, kk > 0 ? 1 : -1);
+    if(l < 3) return fg(num(`${F} функц ${a > 0 ? '[m, +∞[ завсарт өсөх' : ']−∞, m] завсарт өсөх'} бол m-ийг ол.`, h), gCurve(x => a * (x - h) ** 2 + k, Math.min(h - 3.5, -1), Math.max(h + 3.5, 1), {clip: 25}));
+    const kk = r.nz(-5, 5), b = r.i(-9, 9); return fg(num(`f(x) = ${poly([[kk, 'x'], [b, '']])} функц өсөх бол 1, буурах бол −1 гэж бич.`, kk > 0 ? 1 : -1), gCurve(x => kk * x + b, -6, 6, {clip: 14}));
   }, { wide: true });
   a11(3, '3.7', 56, 'parity11', 'Тэгш, сондгой функц', NUM, (r, l) => {
     const a = r.nz(-9, 9), v = r.nz(-20, 20);
@@ -1451,8 +1462,8 @@
   // VIII
   a11(8, '8.1', 118, 'secant11', 'Функцийн графикийн өгсөн цэг дээрх шүргэгчийн налалт', NUM, (r, l) => {
     const a = r.nz(-3, 3), b = r.i(-5, 5), c = r.i(-5, 5), x0 = r.i(-3, 3), h = r.nz(-3, 3), f = x => a * x * x + b * x + c;
-    if(l < 3) return num(`f(x) = ${poly([[a, 'x²'], [b, 'x'], [c, '']])} функцийн графикийн x = ${fmt(x0)} ба x = ${fmt(x0 + h)} цэгүүдийг дайрсан огтлогчийн налалтыг ол.`, (f(x0 + h) - f(x0)) / h);
-    return num(`f(x) = ${poly([[a, 'x²'], [b, 'x'], [c, '']])} функцийн x = ${fmt(x0)} цэг дээрх уламжлал, өөрөөр хэлбэл шүргэгчийн өнцгийн коэффициент = ?`, 2 * a * x0 + b);
+    if(l < 3) return fg(num(`f(x) = ${poly([[a, 'x²'], [b, 'x'], [c, '']])} функцийн графикийн x = ${fmt(x0)} ба x = ${fmt(x0 + h)} цэгүүдийг дайрсан огтлогчийн налалтыг ол.`, (f(x0 + h) - f(x0)) / h), F => { const s = (f(x0 + h) - f(x0)) / h; return gCurve(f, Math.min(x0, x0 + h) - 2, Math.max(x0, x0 + h) + 2, {clip: 30, fns: [{f: t => f(x0) + s * (t - x0), color: '#C0392B', dash: true}], pts: [{p: [x0, f(x0)]}, {p: [x0 + h, f(x0 + h)]}]})(F); });
+    return fg(num(`f(x) = ${poly([[a, 'x²'], [b, 'x'], [c, '']])} функцийн x = ${fmt(x0)} цэг дээрх уламжлал, өөрөөр хэлбэл шүргэгчийн өнцгийн коэффициент = ?`, 2 * a * x0 + b), F => gCurve(f, x0 - 3, x0 + 3, {clip: 30, fns: [{f: t => f(x0) + (2 * a * x0 + b) * (t - x0), color: '#C0392B', dash: true}], pts: [{p: [x0, f(x0)]}]})(F));
   }, { wide: true });
   a11(8, '8.2', 121, 'der11', 'Уламжлал ба дифференциалчлах үйлдэл', NUM, (r, l) => {
     const a = l === 1 ? 0 : r.nz(-3, 3), b = r.nz(-5, 5), c = r.i(-9, 9), d = r.i(-9, 9), x0 = r.i(-3, 3);
@@ -1478,7 +1489,7 @@
   }, { wide: true });
   a11(8, '8.6', 131, 'tline11', 'Шүргэгч ба нормал шулууны тэгшитгэл', 'y = kx + m шулууны k; m-ийг бичнэ.', (r, l) => {
     const a = r.nz(-3, 3), b = r.i(-5, 5), c = r.i(-5, 5), x0 = r.i(-3, 3), y0 = a * x0 * x0 + b * x0 + c, k = 2 * a * x0 + b, F = `f(x) = ${poly([[a, 'x²'], [b, 'x'], [c, '']])}`;
-    if(l < 3) return tup(`${F} муруйг ${PT(x0, y0)} цэгт шүргэх шулууныг y = kx + m хэлбэрт бич. k; m = ?`, [k, y0 - k * x0], w => `y = ${poly([[w[0], 'x'], [w[1], '']])}`);
+    if(l < 3) return fg(tup(`${F} муруйг ${PT(x0, y0)} цэгт шүргэх шулууныг y = kx + m хэлбэрт бич. k; m = ?`, [k, y0 - k * x0], w => `y = ${poly([[w[0], 'x'], [w[1], '']])}`), FF => gCurve(x => a * x * x + b * x + c, x0 - 3, x0 + 3, {clip: 30, fns: [{f: t => y0 + k * (t - x0), color: '#C0392B', dash: true}], pts: [{p: [x0, y0], label: 'M', dir: [1, -1]}]})(FF));
     if(k === 0) return null; return tup(`${F} муруйн ${PT(x0, y0)} цэг дээрх шүргэгчид перпендикуляр (нормал) шулууныг y = kx + m хэлбэрт бич. k; m = ?`, [-1 / k, y0 + x0 / k], w => `y = ${pretty(w[0])}x ${w[1] < 0 ? '−' : '+'} ${pretty(Math.abs(w[1]))}`);
   }, { wide: true });
   a11(8, '8.7', 135, 'rate11', 'Функцийн өсөх, буурах завсар, өөрчлөлтийн хурд', 'Тоогоор бичнэ.', (r, l) => {
@@ -1489,9 +1500,10 @@
   }, { wide: true });
   a11(8, '8.8', 139, 'extr11', 'Функцийн экстремум цэг', 'Тоогоор, эсвэл ; тэмдгээр бичнэ.', (r, l) => {
     const r1 = r.i(-5, 3), r2 = r1 + r.i(1, 6), c = r.i(-9, 9), F = `f(x) = ${poly([[2, 'x³'], [-3 * (r1 + r2), 'x²'], [6 * r1 * r2, 'x'], [c, '']])}`, f = x => 2 * x ** 3 - 3 * (r1 + r2) * x * x + 6 * r1 * r2 * x + c;
-    if(l === 1) return list(`${F} функцийн экстремум цэгүүдийн абсциссыг ол.`, [r1, r2]);
-    if(l === 2) return r.i(0, 1) ? num(`${F} функцийн максимум цэгийн абсциссыг ол.`, r1) : num(`${F} функцийн минимум цэгийн абсциссыг ол.`, r2);
-    return num(`${F} функцийн максимум утгыг ол.`, f(r1));
+    const cg = FF => { const xa = r1 - 1.6, xb = r2 + 1.6, ys = [f(r1), f(r2), f(xa), f(xb)], lo = Math.min(...ys), hi = Math.max(...ys), p = (hi - lo) * .12 || 2; return FF.plot({x: [Math.min(xa, -1), Math.max(xb, 1)], y: [Math.floor(Math.min(lo - p, 0)), Math.ceil(Math.max(hi + p, 0))], fns: [{f}]}); };
+    if(l === 1) return fg(list(`${F} функцийн экстремум цэгүүдийн абсциссыг ол.`, [r1, r2]), cg);
+    if(l === 2) return r.i(0, 1) ? fg(num(`${F} функцийн максимум цэгийн абсциссыг ол.`, r1), cg) : fg(num(`${F} функцийн минимум цэгийн абсциссыг ол.`, r2), cg);
+    return fg(num(`${F} функцийн максимум утгыг ол.`, f(r1)), cg);
   }, { wide: true });
 
   // IX
@@ -1517,10 +1529,10 @@
     if(!Number.isInteger(Math.round(v * 1e6) / 1e6 * 6)) return null; return num(`${INT(lo, hi)} (${poly([[A, 'x'], [B, '']])})${sup(n)} dx =`, v, pretty(v));
   });
   a11(9, '9.7', 170, 'area11', 'Тодорхой интеграл ба дүрсийн талбай', 'Тоо эсвэл бутархайгаар бичнэ.', (r, l) => {
-    if(l === 1){ const k = r.i(1, 4), b = r.i(1, 4); return num(`y = ${k === 1 ? '' : k}x² муруй, Ox тэнхлэг ба x = ${b} шулуунаар хүрээлэгдсэн дүрсийн талбайг ол.`, k * b ** 3 / 3, frac(k * b ** 3, 3)); }
+    if(l === 1){ const k = r.i(1, 4), b = r.i(1, 4); return fg(num(`y = ${k === 1 ? '' : k}x² муруй, Ox тэнхлэг ба x = ${b} шулуунаар хүрээлэгдсэн дүрсийн талбайг ол.`, k * b ** 3 / 3, frac(k * b ** 3, 3)), FF => FF.plot({x: [-1, b + 1], y: [-1, Math.ceil(k * b * b * 1.15) + 1], fns: [{f: x => k * x * x}], vl: [b], shade: {f: x => k * x * x, a: 0, b}})); }
     const r1 = r.i(-4, 2), r2 = r1 + r.i(1, 6), S = (r2 - r1) ** 3 / 6;
-    if(l === 2) return num(`y = ${poly([[-1, 'x²'], [r1 + r2, 'x'], [-r1 * r2, '']])} парабол ба Ox тэнхлэгээр хүрээлэгдсэн дүрсийн талбайг ол.`, S, pretty(S));
-    const m = r.nz(-3, 3), c = r.i(-4, 4), A = 1, B = -(r1 + r2) + m, C0 = r1 * r2 + c; return num(`y = ${poly([[A, 'x²'], [B, 'x'], [C0, '']])} парабол ба y = ${poly([[m, 'x'], [c, '']])} шулуунаар хүрээлэгдсэн дүрсийн талбайг ол.`, S, pretty(S));
+    if(l === 2) return fg(num(`y = ${poly([[-1, 'x²'], [r1 + r2, 'x'], [-r1 * r2, '']])} парабол ба Ox тэнхлэгээр хүрээлэгдсэн дүрсийн талбайг ол.`, S, pretty(S)), FF => { const g = x => -(x - r1) * (x - r2), top = ((r2 - r1) / 2) ** 2; return FF.plot({x: [Math.min(r1 - 1.5, -1), Math.max(r2 + 1.5, 1)], y: [Math.floor(Math.min(-2, -top * .5)), Math.ceil(top * 1.2 + 1)], fns: [{f: g}], shade: {f: g, a: r1, b: r2}}); });
+    const m = r.nz(-3, 3), c = r.i(-4, 4), A = 1, B = -(r1 + r2) + m, C0 = r1 * r2 + c; return fg(num(`y = ${poly([[A, 'x²'], [B, 'x'], [C0, '']])} парабол ба y = ${poly([[m, 'x'], [c, '']])} шулуунаар хүрээлэгдсэн дүрсийн талбайг ол.`, S, pretty(S)), FF => { const P = x => x * x + B * x + C0, Lf = x => m * x + c, xa = r1 - 1.5, xb = r2 + 1.5, ys = [P(xa), P(xb), Lf(xa), Lf(xb), P((r1 + r2) / 2)]; return FF.plot({x: [Math.min(xa, -1), Math.max(xb, 1)], y: FF.range(ys.map(v => Math.max(-30, Math.min(30, v))), .06), fns: [{f: P}, {f: Lf, color: '#C0392B'}], shade: {f: Lf, g: P, a: r1, b: r2}}); });
   }, { wide: true });
 
   // X
@@ -1621,7 +1633,7 @@
     const b = r.pick([2, 3, 5]), k = r.i(1, b === 2 ? 5 : 3);
     if(l === 1){ const a = r.nz(-9, 9); return num(`log${sub(b)} (x ${a < 0 ? '−' : '+'} ${Math.abs(a)}) = ${k} тэгшитгэлийг бод.`, b ** k - a); }
     if(l === 2){ const a = r.i(2, 5), c = r.nz(-9, 9); if((b ** k - c) % a) return null; return num(`log${sub(b)} (${poly([[a, 'x'], [c, '']])}) = ${k} тэгшитгэлийг бод.`, (b ** k - c) / a); }
-    const a = r.nz(-9, 9), c = r.i(1, 5); return num(`y = log${sub(b)} (${poly([[c, 'x'], [a, '']])}) функцийн тодорхойлогдох муж ]m; +∞[ бол m-ийг ол.`, -a / c, frac(-a, c));
+    const a = r.nz(-9, 9), c = r.i(1, 5); return fg(num(`y = log${sub(b)} (${poly([[c, 'x'], [a, '']])}) функцийн тодорхойлогдох муж ]m; +∞[ бол m-ийг ол.`, -a / c, frac(-a, c)), FF => { const m0 = -a / c; return FF.plot({x: [Math.min(m0 - 2, -1), Math.max(m0 + 8, 2)], y: [-4, 4], fns: [{f: x => c * x + a > 0 ? Math.log(c * x + a) / Math.log(b) : NaN, dom: [m0 + 1e-4, Math.max(m0 + 8, 2)]}], vl: [m0]}); });
   }, { wide: true });
   a12(3, '3.5', 74, 'eln12', 'y = eˣ ба y = ln x функц', NUM, (r, l) => {
     const k = r.i(1, 9);
@@ -1631,16 +1643,17 @@
   });
   a12(3, '3.6', 77, 'ratf12', 'Рационал функц', FR12, (r, l) => {
     const a = r.nz(-6, 6), b = r.nz(-9, 9), c = r.nz(-5, 5), d = r.nz(-9, 9); if(a * d === b * c) return null;
-    const F = `y = (${poly([[a, 'x'], [b, '']])}) / (${poly([[c, 'x'], [d, '']])})`;
-    if(l === 1) return num(`${F} функцийн босоо асимптот x = m бол m-ийг ол.`, -d / c, frac(-d, c));
-    if(l === 2) return num(`${F} функцийн хэвтээ асимптот y = m бол m-ийг ол.`, a / c, frac(a, c));
-    return num(`${F} функцийн график Oy тэнхлэгийг огтлох цэгийн ординатыг ол.`, b / d, frac(b, d));
+    const F = `y = (${poly([[a, 'x'], [b, '']])}) / (${poly([[c, 'x'], [d, '']])})`, rg = FF => { const v = -d / c, hz = a / c; return FF.plot({x: [v - 6, v + 6], y: [Math.floor(hz - 7), Math.ceil(hz + 7)], fns: [{f: x => (a * x + b) / (c * x + d)}]}); };
+    if(l === 1) return fg(num(`${F} функцийн босоо асимптот x = m бол m-ийг ол.`, -d / c, frac(-d, c)), rg);
+    if(l === 2) return fg(num(`${F} функцийн хэвтээ асимптот y = m бол m-ийг ол.`, a / c, frac(a, c)), rg);
+    return fg(num(`${F} функцийн график Oy тэнхлэгийг огтлох цэгийн ординатыг ол.`, b / d, frac(b, d)), rg);
   }, { wide: true });
   a12(3, '3.7', 86, 'trigf12', 'Тоон аргументтай тригонометр функц', 'Хариуг тоогоор, үеийг π-гийн коэффициентоор бичнэ.', (r, l) => {
     const A = r.i(1, 6), k = r.i(1, 6), B = r.i(-5, 5), f = r.pick(['sin', 'cos']);
-    if(l === 1) return num(`y = ${f} ${k === 1 ? '' : k}x функцийн үндсэн үе = ?·π`, 2 / k, frac(2, k));
-    if(l === 2) return r.i(0, 1) ? num(`y = ${A === 1 ? '' : A} ${f} x ${B < 0 ? '−' : '+'} ${Math.abs(B)} функцийн хамгийн их утгыг ол.`, A + B) : num(`y = ${A === 1 ? '' : A} ${f} x ${B < 0 ? '−' : '+'} ${Math.abs(B)} функцийн хамгийн бага утгыг ол.`, B - A);
-    return num(`y = tg ${k === 1 ? '' : k}x функцийн үндсэн үе = ?·π`, 1 / k, frac(1, k));
+    const tf = f === 'sin' ? Math.sin : Math.cos, tp = (g, y, W) => FF => FF.plot({x: [-Math.PI / 2, 2 * Math.PI + .2], y, fns: [{f: g}], xstep: Math.PI / 2, xfmt: FF.piFmt, W: W || 290});
+    if(l === 1) return fg(num(`y = ${f} ${k === 1 ? '' : k}x функцийн үндсэн үе = ?·π`, 2 / k, frac(2, k)), tp(x => tf(k * x), [-1.6, 1.6]));
+    if(l === 2) return r.i(0, 1) ? fg(num(`y = ${A === 1 ? '' : A} ${f} x ${B < 0 ? '−' : '+'} ${Math.abs(B)} функцийн хамгийн их утгыг ол.`, A + B), tp(x => A * tf(x) + B, [Math.min(-1, B - A - 1), Math.max(1, B + A + 1)])) : fg(num(`y = ${A === 1 ? '' : A} ${f} x ${B < 0 ? '−' : '+'} ${Math.abs(B)} функцийн хамгийн бага утгыг ол.`, B - A), tp(x => A * tf(x) + B, [Math.min(-1, B - A - 1), Math.max(1, B + A + 1)]));
+    return fg(num(`y = tg ${k === 1 ? '' : k}x функцийн үндсэн үе = ?·π`, 1 / k, frac(1, k)), tp(x => Math.tan(k * x), [-4, 4]));
   }, { wide: true });
 
   // IV
