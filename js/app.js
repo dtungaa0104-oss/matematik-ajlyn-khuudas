@@ -5,6 +5,31 @@ const LETTER = ['А', 'Б', 'В', 'Г'];
 const FORMS = {0: 'Задгай', 1: 'Тест', 2: 'Холимог'};
 const S = { form: 0, choice: {}, grade: 8, topic: 0, level: 1, count: 10, seed: 1000 + Math.floor(Math.random() * 9000), mode: 'online', answers: {}, checked: false, reveal: false, items: [], student: false, allowReveal: false };
 const $ = id => document.getElementById(id);
+/* Элемент байхгүй (index.html хуучин хувилбартай) үед бүх хуудас зогсохоос сэргийлнэ */
+const on = (id, ev, fn) => { const el = $(id); if(el) el.addEventListener(ev, fn); else missingParts.add('index.html'); };
+const missingParts = new Set();
+function showProblem(msg){
+  let b = document.getElementById('siteProblem');
+  if(!b){ b = document.createElement('div'); b.id = 'siteProblem'; b.setAttribute('role', 'alert');
+    b.style.cssText = 'margin:12px auto;max-width:1200px;padding:12px 16px;border-radius:10px;background:#FBE9E7;color:#8A1F14;font:15px/1.5 system-ui,sans-serif;border:1px solid #E7B3AC';
+    document.body.prepend(b); }
+  if(!b.textContent.includes(msg)) b.textContent += (b.textContent ? ' ' : '') + msg;
+}
+(function(){
+  const need = [['WS', 'js/generators.js'], ['katex', 'vendor/katex/katex.min.js'], ['MATHFMT', 'js/mathfmt.js']];
+  const miss = need.filter(([g]) => !window[g]).map(x => x[1]);
+  if(miss.length){ showProblem('Сайтын зарим файл олдсонгүй: ' + miss.join(', ') + '. GitHub дээрх файлуудаа шалгана уу.'); }
+})();
+/* index.html хуучин үлдсэн бол дутуу элементүүдийг нууцаар нөхөж, анхааруулга харуулна */
+(function(){
+  const ids = {tabResults: 'button', studentBar: 'div', sbTitle: 'b', sbMeta: 'span', stName: 'input', stClass: 'input', sharePanel: 'section', shareLink: 'input', shareReveal: 'input',
+    copyLink: 'button', qr: 'div', qrBig: 'button', shareStatus: 'div', qrDlg: 'dialog', qrBigBox: 'div', qrCodeTxt: 'p', score: 'div', sheet: 'div', onlineTools: 'div', checkBtn: 'button', clearBtn: 'button'};
+  const miss = Object.keys(ids).filter(id => !$(id));
+  if(!miss.length) return;
+  const box = document.createElement('div'); box.hidden = true; document.body.appendChild(box);
+  miss.forEach(id => { const el = document.createElement(ids[id]); el.id = id; if(ids[id] === 'input' && id === 'shareReveal') el.type = 'checkbox'; box.appendChild(el); });
+  showProblem('index.html файл хуучин хувилбартай байна (шинэ js/app.js-тэй таарахгүй). GitHub дээр index.html-ийг шинэ zip доторхоор солино уу.');
+})();
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let downloads = null;
 if(window.claude && window.claude.use) window.claude.use('downloads').then(d => { downloads = d; }).catch(() => {});
@@ -210,16 +235,16 @@ document.addEventListener('click', e => {
   if(rb){ const inp = $('a' + rb.dataset.root); const p = inp.selectionStart ?? inp.value.length; inp.value = inp.value.slice(0, p) + '√' + inp.value.slice(inp.selectionEnd ?? p); S.answers[rb.dataset.root] = inp.value; inp.focus(); inp.setSelectionRange(p + 1, p + 1); return; }
   if(e.target.closest('#revealBtn')){ S.reveal = !S.reveal; render(); }
 });
-$('topics').addEventListener('change', e => { S.topic = Number(e.target.value); build(); });
-$('count').addEventListener('change', e => { S.count = Number(e.target.value); build(); });
-$('newVar').addEventListener('click', () => { S.seed = 1000 + Math.floor(Math.random() * 9000); build(); });
-$('tabOnline').addEventListener('click', () => { S.mode = 'online'; render(); });
-$('tabPrint').addEventListener('click', () => { S.mode = 'print'; render(); });
-$('withKey').addEventListener('change', render);
-$('school').addEventListener('input', () => { clearTimeout(render.t); render.t = setTimeout(render, 300); });
-$('checkBtn').addEventListener('click', check);
-$('clearBtn').addEventListener('click', () => { S.answers = {}; S.choice = {}; S.checked = false; S.reveal = false; render(); });
-$('pdfBtn').addEventListener('click', exportPDF);
+on('topics', 'change', e => { S.topic = Number(e.target.value); build(); });
+on('count', 'change', e => { S.count = Number(e.target.value); build(); });
+on('newVar', 'click', () => { S.seed = 1000 + Math.floor(Math.random() * 9000); build(); });
+on('tabOnline', 'click', () => { S.mode = 'online'; render(); });
+on('tabPrint', 'click', () => { S.mode = 'print'; render(); });
+on('withKey', 'change', render);
+on('school', 'input', () => { clearTimeout(render.t); render.t = setTimeout(render, 300); });
+on('checkBtn', 'click', check);
+on('clearBtn', 'click', () => { S.answers = {}; S.choice = {}; S.checked = false; S.reveal = false; render(); });
+on('pdfBtn', 'click', exportPDF);
 
 /* ---------- Сурагчдад цахимаар өгөх ---------- */
 const shareURL = () => location.href.split('#')[0] + '#' + ($('shareReveal').checked ? 'sr-' : 's-') + code();
@@ -234,13 +259,13 @@ async function copyText(t){
     const ta = document.createElement('textarea'); ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select();
     let ok = false; try { ok = document.execCommand('copy'); } catch(_){} ta.remove(); return ok; }
 }
-$('copyLink').addEventListener('click', async () => {
+on('copyLink', 'click', async () => {
   const ok = await copyText(shareURL());
   shareSay('shareStatus', ok ? 'Холбоос хуулагдлаа. Чат эсвэл Classroom-д буулгаж илгээнэ үү.' : 'Хуулж чадсангүй. Дээрх холбоосыг гараар сонгож хуулна уу.', ok ? 'ok' : 'err');
 });
-$('shareLink').addEventListener('focus', e => e.target.select());
-$('shareReveal').addEventListener('change', updateShare);
-$('qrBig').addEventListener('click', () => {
+on('shareLink', 'focus', e => e.target.select());
+on('shareReveal', 'change', updateShare);
+on('qrBig', 'click', () => {
   if(!window.qrcode) return; const q = qrcode(0, 'M'); q.addData(shareURL()); q.make();
   $('qrBigBox').innerHTML = q.createSvgTag({cellSize: 8, margin: 2, scalable: true});
   $('qrCodeTxt').textContent = `${S.grade}-р анги · Код ${code()}`;
@@ -268,11 +293,11 @@ document.addEventListener('click', async e => {
   const c = await copyText(text);
   shareSay('sendStatus', c ? 'Үр дүн хуулагдлаа. Багшийн чат руу буулгаж илгээнэ үү.' : 'Хуулж чадсангүй. Дэлгэцийн зургийг авч илгээнэ үү.', c ? 'ok' : 'err');
 });
-$('sheet').addEventListener('input', e => { if(e.target.dataset.i != null) S.answers[e.target.dataset.i] = e.target.value; });
-$('sheet').addEventListener('keydown', e => {
+on('sheet', 'input', e => { if(e.target.dataset.i != null) S.answers[e.target.dataset.i] = e.target.value; });
+on('sheet', 'keydown', e => {
   if(e.key === 'Enter' && e.target.dataset.i != null){ e.preventDefault(); const nx = $('a' + (Number(e.target.dataset.i) + 1)); if(nx) nx.focus(); else check(); }
 });
-$('codeForm').addEventListener('submit', e => {
+on('codeForm', 'submit', e => {
   e.preventDefault();
   const m = $('codeIn').value.trim().match(/^(\d{1,2})-(\d{1,3})-([123])-(\d{1,2})-(?:([012])-)?(\d{1,6})$/);
   const g = m && Number(m[1]);
@@ -281,7 +306,7 @@ $('codeForm').addEventListener('submit', e => {
   Object.assign(S, {grade: g, topic: Number(m[2]), level: Number(m[3]), count: [6, 10, 15, 20].includes(Number(m[4])) ? Number(m[4]) : 10, form: Number(m[5] || 0), seed: Number(m[6])});
   S.mode = 'online'; build();
 });
-$('codeIn').addEventListener('input', () => $('codeIn').setCustomValidity(''));
+on('codeIn', 'input', () => $('codeIn').setCustomValidity(''));
 
 load();
 const h = (location.hash || '').match(/^#(w|s|sr)-(\d{1,2})-(\d{1,3})-([123])-(\d{1,2})-(?:([012])-)?(\d{1,6})$/);
@@ -295,4 +320,4 @@ if(h && W.GRADES.includes(Number(h[2]))){
 if(![0, 1, 2].includes(S.form)) S.form = 0;
 if(!validTopic(S.grade, S.topic)) S.topic = 0;
 if(![6, 10, 15, 20].includes(S.count)) S.count = 10;
-build();
+try { build(); } catch(e){ showProblem('Хуудсыг ачаалахад алдаа гарлаа: ' + (e && e.message) + '. Бүх файлыг шинэ zip-ээс дахин оруулна уу.'); console.error(e); }

@@ -149,7 +149,7 @@
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `dun-${R.code}.csv`; document.body.appendChild(a); a.click(); a.remove();
   }
 
-  $('tabResults').addEventListener('click', () => { S.mode = 'results'; render(); if(URL0() && R.key && !R.codes && !R.loading) loadCodes(); });
+  on('tabResults', 'click', () => { S.mode = 'results'; render(); if(URL0() && R.key && !R.codes && !R.loading) loadCodes(); });
   document.addEventListener('submit', e => { if(e.target.id === 'keyForm'){ e.preventDefault(); R.key = $('tkey').value.trim(); if(R.key) loadCodes(); } });
   document.addEventListener('click', e => {
     const c = e.target.closest('[data-rcode]'); if(c){ loadCode(c.dataset.rcode); return; }
