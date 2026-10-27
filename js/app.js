@@ -38,7 +38,7 @@ function showProblem(msg){
 /* index.html хуучин үлдсэн бол дутуу элементүүдийг нууцаар нөхөж, анхааруулга харуулна */
 (function(){
   const ids = {tabResults: 'button', studentBar: 'div', sbTitle: 'b', sbMeta: 'span', stName: 'input', stClass: 'input', sharePanel: 'section', shareLink: 'input', shareReveal: 'input',
-    copyLink: 'button', qr: 'div', qrBig: 'button', shareStatus: 'div', qrDlg: 'dialog', qrBigBox: 'div', qrCodeTxt: 'p', score: 'div', sheet: 'div', onlineTools: 'div', checkBtn: 'button', clearBtn: 'button', mcCount: 'select', opCount: 'select', cntNote: 'p'};
+    copyLink: 'button', shareTime: 'select', startBox: 'div', startInfo: 'p', startBtn: 'button', timer: 'div', qr: 'div', qrBig: 'button', shareStatus: 'div', qrDlg: 'dialog', qrBigBox: 'div', qrCodeTxt: 'p', score: 'div', sheet: 'div', onlineTools: 'div', checkBtn: 'button', clearBtn: 'button', mcCount: 'select', opCount: 'select', cntNote: 'p'};
   const miss = Object.keys(ids).filter(id => !$(id));
   if(!miss.length) return;
   const box = document.createElement('div'); box.hidden = true; document.body.appendChild(box);
@@ -176,6 +176,7 @@ function render(){
     sc.innerHTML = `<div class="result-card">
       <div><b>${ok} / ${n}</b> <span class="small">зөв · ${pct}%</span></div>
       <div class="who">${esc(stWho())} · Код ${code()} · ${esc(S.doneAt || '')}</div>
+      ${S.timedOut ? '<div class="status err">Хугацаа дууссан тул хариуг автоматаар шалгаж илгээлээ.</div>' : ''}
       ${miss.length ? `<div class="small">Алдсан эсвэл хоосон: ${miss.join(', ')}-р даалгавар</div>` : '<div class="small">Бүх даалгавар зөв. Баяр хүргэе!</div>'}
       ${window.APP_CONFIG && APP_CONFIG.RESULTS_URL ? '' : '<div class="small">Үр дүнгээ «Мессежээр илгээх» товчоор багшдаа илгээнэ үү, эсвэл энэ дэлгэцийн зургийг авна уу.</div>'}
       ${window.sendStateHTML ? sendStateHTML() : ''}
@@ -192,11 +193,12 @@ function render(){
   save();
 }
 
-function check(){
-  if(S.student && !$('stName').value.trim()){ $('stName').setCustomValidity('Нэрээ бичнэ үү'); $('stName').reportValidity(); $('stName').focus(); return; }
+function check(force){
+  if(S.student && !force && !$('stName').value.trim()){ $('stName').setCustomValidity('Нэрээ бичнэ үү'); $('stName').reportValidity(); $('stName').focus(); return; }
   if(S.student){ const d = new Date(), z = n => String(n).padStart(2, '0'); S.doneAt = `${d.getFullYear()}.${z(d.getMonth() + 1)}.${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`; }
   S.results = S.items.map((p, i) => p.mc ? (S.choice[i] == null ? null : S.choice[i] === p.ci) : W.check(p, S.answers[i]));
-  S.checked = true; render();
+  S.checked = true; stopTimer(); render();
+  if(S.student){ saveRun({done: true, doneAt: S.doneAt, timedOut: !!S.timedOut}); }
   if(S.student && window.submitResult) submitResult();
 }
 
@@ -262,12 +264,12 @@ on('tabOnline', 'click', () => { S.mode = 'online'; render(); });
 on('tabPrint', 'click', () => { S.mode = 'print'; render(); });
 on('withKey', 'change', render);
 on('school', 'input', () => { clearTimeout(render.t); render.t = setTimeout(render, 300); });
-on('checkBtn', 'click', check);
+on('checkBtn', 'click', () => check());
 on('clearBtn', 'click', () => { S.answers = {}; S.choice = {}; S.checked = false; S.reveal = false; render(); });
 on('pdfBtn', 'click', exportPDF);
 
 /* ---------- Сурагчдад цахимаар өгөх ---------- */
-const shareURL = () => location.href.split('#')[0] + '#' + ($('shareReveal').checked ? 'sr-' : 's-') + code();
+const shareURL = () => { const t = Number(($('shareTime') || {}).value || 0); return location.href.split('#')[0] + '#' + ($('shareReveal').checked ? 'sr-' : 's-') + code() + (t > 0 ? '~' + t : ''); };
 function updateShare(){
   if(S.student) return;
   const url = shareURL(); $('shareLink').value = url;
@@ -285,6 +287,7 @@ on('copyLink', 'click', async () => {
 });
 on('shareLink', 'focus', e => e.target.select());
 on('shareReveal', 'change', updateShare);
+on('shareTime', 'change', updateShare);
 on('qrBig', 'click', () => {
   if(!window.qrcode) return; const q = qrcode(0, 'M'); q.addData(shareURL()); q.make();
   $('qrBigBox').innerHTML = q.createSvgTag({cellSize: 8, margin: 2, scalable: true});
@@ -298,7 +301,7 @@ function renderStudent(){
   if(!S.student) return;
   $('studentBar').hidden = false;
   $('sbTitle').innerHTML = Mx(esc(topicTitle()));
-  $('sbMeta').textContent = `${S.grade}-р анги · ${LV[S.level]} · ${S.items.length} даалгавар · Код ${code()}`;
+  $('sbMeta').textContent = `${S.grade}-р анги · ${LV[S.level]} · ${S.items.length} даалгавар${S.limit ? ' · Хугацаа ' + S.limit + ' минут' : ''} · Код ${code()}`;
   $('stName').disabled = $('stClass').disabled = S.checked;
   $('clearBtn').hidden = S.checked;
   $('checkBtn').hidden = S.checked;
@@ -327,8 +330,49 @@ on('codeForm', 'submit', e => {
 });
 on('codeIn', 'input', () => $('codeIn').setCustomValidity(''));
 
+/* ---------- Гүйцэтгэх хугацаа (сурагчийн горим) ----------
+   Явцыг энэ төхөөрөмж дээр (код бүрээр) хадгална: эхэлсэн цаг, нэр, хариу. Хуудсыг дахин ачаалсан ч цаг шинээр эхлэхгүй. */
+const runKey = () => 'ws_run_' + code() + (S.limit ? '~' + S.limit : '');
+function loadRun(){ try { return JSON.parse(localStorage.getItem(runKey()) || 'null') || {}; } catch(e){ return {}; } }
+function saveRun(extra){ if(!S.student) return; try { const r = Object.assign(loadRun(), {answers: S.answers, choice: S.choice, n: $('stName').value, c: $('stClass').value}, extra || {}); localStorage.setItem(runKey(), JSON.stringify(r)); } catch(e){} }
+let tickId = null;
+function stopTimer(){ if(tickId){ clearInterval(tickId); tickId = null; } const t = $('timer'); if(t && S.checked) t.hidden = true; }
+function tick(){
+  if(!S.limit || !S.runStart || S.checked) return;
+  const left = Math.max(0, S.runStart + S.limit * 60000 - Date.now()), m = Math.floor(left / 60000), sec = Math.floor(left % 60000 / 1000), t = $('timer');
+  t.hidden = false; t.textContent = `⏱ ${m}:${String(sec).padStart(2, '0')}`; t.className = 'timer' + (left <= 60000 ? ' danger' : left <= 5 * 60000 ? ' warn' : '');
+  t.setAttribute('aria-label', `${m} минут ${sec} секунд үлдлээ`);
+  if(left <= 0){ S.timedOut = true; check(true); return; }
+  if(Math.floor(Date.now() / 1000) % 3 === 0) saveRun();
+}
+function startTimer(){ document.body.classList.remove('pre-start'); $('startBox').hidden = true; S.startedAt = S.runStart; if(tickId) clearInterval(tickId); tickId = setInterval(tick, 500); tick(); }
+function initRun(){
+  if(!S.student) return;
+  const r = loadRun();
+  if(r.n) $('stName').value = r.n; if(r.c) $('stClass').value = r.c;
+  if(r.answers) S.answers = r.answers; if(r.choice) S.choice = r.choice;
+  if(r.done && !S.limit){ S.answers = {}; S.choice = {}; render(); return; } // хугацаагүй горимд дахин бөглөж болно
+  if(r.done){ // өмнө нь илгээсэн: үр дүнг харуулж, дахин илгээхгүй
+    S.timedOut = !!r.timedOut; S.doneAt = r.doneAt || '';
+    S.results = S.items.map((p, i) => p.mc ? (S.choice[i] == null ? null : S.choice[i] === p.ci) : W.check(p, S.answers[i]));
+    S.checked = true; S.sendState = {text: 'Энэ даалгаврыг өмнө нь шалгуулж илгээсэн.', cls: 'ok'}; render(); setTimeout(render, 0); return;
+  }
+  if(!S.limit){ render(); return; }
+  if(r.start){ S.runStart = r.start; render(); startTimer(); return; }
+  document.body.classList.add('pre-start'); $('startBox').hidden = false;
+  $('startInfo').innerHTML = `Энэ ажлын хуудсыг <b>${S.limit} минутын</b> дотор гүйцэтгэнэ. Нэрээ бичээд «Эхлэх» дарахад цаг эхэлнэ. Хугацаа дуусахад хариу автоматаар шалгагдаж илгээгдэнэ.`;
+  render();
+}
+on('startBtn', 'click', () => {
+  if(!$('stName').value.trim()){ $('stName').setCustomValidity('Нэрээ бичнэ үү'); $('stName').reportValidity(); $('stName').focus(); return; }
+  S.runStart = Date.now(); saveRun({start: S.runStart}); startTimer();
+});
+document.addEventListener('click', e => { if(S.student && e.target.closest('[data-mc]')) setTimeout(() => saveRun(), 0); });
+on('sheet', 'change', () => { if(S.student) saveRun(); });
+
 load();
-const hm = (location.hash || '').match(/^#(w|s|sr)-(.+)$/), h = hm && parseCode(decodeURIComponent(hm[2]));
+const hm = (location.hash || '').match(/^#(w|s|sr)-([^~]+)(?:~(\d{1,3}))?$/), h = hm && parseCode(decodeURIComponent(hm[2]));
+S.limit = hm && hm[3] ? Math.min(240, Number(hm[3])) : 0;
 if(h && W.GRADES.includes(h.grade)){
   applyCode(h); S.mode = 'online';
   if(hm[1] !== 'w' && validTopic(S.grade, S.topic)){
@@ -338,4 +382,4 @@ if(h && W.GRADES.includes(h.grade)){
 }
 if(!validTopic(S.grade, S.topic)) S.topic = 0;
 if(!S.legacy && (S.mc + S.op < 1 || S.mc + S.op > 40)){ S.mc = 5; S.op = 5; }
-try { build(); } catch(e){ showProblem('Хуудсыг ачаалахад алдаа гарлаа: ' + (e && e.message) + '. Бүх файлыг шинэ zip-ээс дахин оруулна уу.'); console.error(e); }
+try { build(); initRun(); } catch(e){ showProblem('Хуудсыг ачаалахад алдаа гарлаа: ' + (e && e.message) + '. Бүх файлыг шинэ zip-ээс дахин оруулна уу.'); console.error(e); }

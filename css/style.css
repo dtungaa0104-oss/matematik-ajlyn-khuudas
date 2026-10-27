@@ -221,3 +221,11 @@ body.student main{flex:1 1 100%}
 #forms button{font-size:14px}
 #levels{display:grid;grid-template-columns:1.5fr 1fr 1fr}
 #levels button{font-size:14px;line-height:1.2;white-space:normal}
+
+/* Гүйцэтгэх хугацаа */
+.timer{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:12px;z-index:60;background:#1F4FBF;color:#FFFFFF;padding:8px 14px;border-radius:999px;font:700 18px/1 var(--ui);font-variant-numeric:tabular-nums;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.timer.warn{background:#B7791F}
+.timer.danger{background:#B4372B}
+@media (prefers-reduced-motion:no-preference){ .timer.danger{animation:tpulse 1s ease-in-out infinite} @keyframes tpulse{50%{transform:scale(1.06)}} }
+.start-box{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:10px}
+body.pre-start #sheet,body.pre-start .tabs,body.pre-start #score{display:none}

@@ -52,6 +52,7 @@
       <h2>Сурагчдад цахимаар өгөх</h2>
       <p class="small" style="margin:0">Энэ холбоосыг Messenger, Teams, Google Classroom-оор илгээх эсвэл QR кодыг самбарт гаргана. Сурагч бүр ижил хуудсыг өөрийн утас, компьютер дээр бөглөнө.</p>
       <label class="check"><input type="checkbox" id="shareReveal"> Шалгасны дараа зөв хариуг харуулах</label>
+      <label class="f" for="shareTime">Гүйцэтгэх хугацаа<select id="shareTime"><option value="0">Хязгааргүй</option><option value="5">5 минут</option><option value="10">10 минут</option><option value="15">15 минут</option><option value="20">20 минут</option><option value="25">25 минут</option><option value="30">30 минут</option><option value="35">35 минут</option><option value="40">40 минут</option><option value="45">45 минут</option><option value="60">60 минут</option><option value="80">80 минут</option><option value="90">90 минут</option></select></label>
       <label class="f" for="shareLink">Сурагчийн холбоос<input type="text" id="shareLink" readonly></label>
       <button class="btn wide" id="copyLink" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Холбоос хуулах</button>
       <div class="qr" id="qr" aria-label="Сурагчийн холбоосын QR код" role="img"></div>
@@ -87,11 +88,16 @@
         <label class="f" for="stName">Нэр, овог<input type="text" id="stName" maxlength="40" autocomplete="name" placeholder="Жишээ: Б. Сараа"></label>
         <label class="f" for="stClass">Анги, бүлэг<input type="text" id="stClass" maxlength="12" placeholder="9б"></label>
       </div>
+      <div class="start-box" id="startBox" hidden>
+        <p id="startInfo" style="margin:0"></p>
+        <button class="btn" id="startBtn" type="button">Эхлэх</button>
+      </div>
     </div>
     <div class="score" id="score" hidden></div>
     <div id="sheet"></div>
   </main>
 </div>
+<div class="timer" id="timer" role="timer" aria-live="off" hidden></div>
 <dialog class="qrdlg" id="qrDlg" aria-label="QR код">
   <div class="qrbig" id="qrBigBox"></div>
   <p class="qrcap">Утасныхаа камераар уншуулж ажлын хуудсаа нээнэ үү</p>

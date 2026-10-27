@@ -12,7 +12,8 @@
   function payload(){
     const n = S.items.length, ok = S.results.filter(x => x === true).length;
     const detail = S.results.map(x => x === true ? '1' : x === false ? '0' : '-').join('');
-    const answers = S.items.map((p, i) => `${i + 1}) ${p.mc ? (S.choice[i] == null ? '—' : LETTER[S.choice[i]]) : ((S.answers[i] || '').trim() || '—')}`).join('; ');
+    const tag = S.limit ? `[Хугацаа ${S.limit} мин${S.timedOut ? ', дууссан' : ''}] ` : '';
+    const answers = tag + S.items.map((p, i) => `${i + 1}) ${p.mc ? (S.choice[i] == null ? '—' : LETTER[S.choice[i]]) : ((S.answers[i] || '').trim() || '—')}`).join('; ');
     return {
       code: code(), grade: S.grade, topic: plain(topicTitle()), level: LV[S.level], form: formLabel(),
       name: $('stName').value.trim(), group: $('stClass').value.trim(),
