@@ -319,3 +319,14 @@ body.resmode main{flex:1 1 100%;max-width:100%}
 .path p{margin:0}
 a.btn{text-decoration:none}
 @media (max-width:480px){ .ladder li+li::before{display:none} .ladder{font-size:13px;gap:8px 14px} }
+
+/* ===== Алхамчилсан бодолт ===== */
+.sol{grid-column:2;margin-top:10px;border:1px solid var(--paper-line);border-radius:10px;background:#F7FAF8;font-family:var(--ui);font-size:14.5px;line-height:1.55;color:var(--paper-ink)}
+.sol summary{cursor:pointer;padding:8px 12px;font-weight:600;color:#22614C;list-style-position:inside}
+.sol summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+.sol-body{padding:0 14px 12px}
+.sol-m{margin:0 0 6px}
+.sol-s{margin:6px 0;padding-left:22px;display:flex;flex-direction:column;gap:4px}
+.sol-a{margin:6px 0 0}
+.sol-s li::marker{color:var(--paper-muted);font-size:13px}
+@media print{ .sol{display:none} }

@@ -92,6 +92,19 @@ function controls(){
   if(typeof updateShare === 'function') updateShare();
 }
 
+/* Алхамчилсан бодолт: шалгасны дараа алдсан даалгаврын доор. Сурагчид тоон бодолт зөвхөн багш «зөв хариу харуулах»-ыг зөвшөөрсөн үед,
+   бусад үед зөвхөн «Бодох арга» (тоогүй ерөнхий заавар) харагдана. */
+S.solOpen = {};
+function solHTML(p, i, st){
+  if(!S.checked || (S.student && st === true)) return '';
+  const meth = (window.METHODS || {})[p.tid], steps = p.sol && p.sol.length && (!S.student || S.allowReveal);
+  if(!meth && !steps) return '';
+  return `<details class="sol" data-sol="${i}"${S.solOpen[i] ? ' open' : ''}><summary>${steps ? 'Бодолтыг харах' : 'Бодох арга'}</summary><div class="sol-body">
+    ${meth ? `<p class="sol-m"><b>Бодох арга.</b> ${Mx(meth)}</p>` : ''}
+    ${steps ? `<ol class="sol-s">${p.sol.map(x => `<li>${Mx(x)}</li>`).join('')}</ol><p class="sol-a">Хариу: <b>${Mx(p.show)}</b></p>` : ''}</div></details>`;
+}
+document.addEventListener('toggle', e => { const d = e.target; if(d && d.matches && d.matches('details[data-sol]')) S.solOpen[d.dataset.sol] = d.open; }, true);
+
 function sheetHTML(items, opts){
   const {mode, letter, seed} = opts;
   const school = $('school').value.trim();
@@ -115,7 +128,7 @@ function sheetHTML(items, opts){
         ${verdict(st)}</div>
         ${S.checked && S.reveal && st !== true ? `<div class="reveal">Зөв хариу: <b>${Mx(p.show)}</b></div>` : ''}`;
     }
-    return `<li class="${cls}"><span class="p-n">${i + 1}.</span><div class="p-q">${Mx(p.q)}</div>${p.fig ? `<div class="p-fig">${p.fig}</div>` : ''}${tail}</li>`;
+    return `<li class="${cls}"><span class="p-n">${i + 1}.</span><div class="p-q">${Mx(p.q)}</div>${p.fig ? `<div class="p-fig">${p.fig}</div>` : ''}${tail}${mode === 'online' ? solHTML(p, i, st) : ''}</li>`;
   };
   const nmc = items.filter(p => p.mc).length, nopen = items.length - nmc;
   const mcNote = mode === 'print' ? 'Зөв хариултын үсгийг дугуйлна.' : 'Зөв хариултыг сонгоно.';
@@ -152,7 +165,7 @@ function keyHTML(items, letter, seed){
 
 function build(){
   S.items = W.makeSheet(S.grade, S.topic, S.level, total(), S.seed, formArg());
-  S.answers = {}; S.choice = {}; S.checked = false; S.reveal = false; S.results = [];
+  S.answers = {}; S.choice = {}; S.checked = false; S.reveal = false; S.results = []; S.solOpen = {};
   render();
 }
 function render(){
@@ -178,7 +191,7 @@ function render(){
       <div><b>${ok} / ${n}</b> <span class="small">зөв · ${pct}%</span></div>
       <div class="who">${esc(stWho())} · Код ${code()} · ${esc(S.doneAt || '')}</div>
       ${S.timedOut ? '<div class="status err">Хугацаа дууссан тул хариуг автоматаар шалгаж илгээлээ.</div>' : ''}
-      ${miss.length ? `<div class="small">Алдсан эсвэл хоосон: ${miss.join(', ')}-р даалгавар</div>` : '<div class="small">Бүх даалгавар зөв. Баяр хүргэе!</div>'}
+      ${miss.length ? `<div class="small">Алдсан эсвэл хоосон: ${miss.join(', ')}-р даалгавар. Тэдгээрийн доор «${S.allowReveal ? 'Бодолтыг харах' : 'Бодох арга'}» гэсэн тайлбар бий.</div>` : '<div class="small">Бүх даалгавар зөв. Баяр хүргэе!</div>'}
       ${window.APP_CONFIG && APP_CONFIG.RESULTS_URL ? '' : '<div class="small">Үр дүнгээ «Мессежээр илгээх» товчоор багшдаа илгээнэ үү, эсвэл энэ дэлгэцийн зургийг авна уу.</div>'}
       ${window.sendStateHTML ? sendStateHTML() : ''}
       ${pathHTML(pct)}
@@ -267,7 +280,7 @@ on('tabPrint', 'click', () => { S.mode = 'print'; render(); });
 on('withKey', 'change', render);
 on('school', 'input', () => { clearTimeout(render.t); render.t = setTimeout(render, 300); });
 on('checkBtn', 'click', () => check());
-on('clearBtn', 'click', () => { S.answers = {}; S.choice = {}; S.checked = false; S.reveal = false; render(); });
+on('clearBtn', 'click', () => { S.answers = {}; S.choice = {}; S.checked = false; S.reveal = false; S.solOpen = {}; render(); });
 on('pdfBtn', 'click', exportPDF);
 
 /* ---------- Сурагчдад цахимаар өгөх ---------- */
