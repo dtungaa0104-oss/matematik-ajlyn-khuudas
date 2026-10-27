@@ -161,6 +161,7 @@ function render(){
   $('tabPrint').setAttribute('aria-selected', S.mode === 'print');
   $('onlineTools').hidden = S.mode !== 'online';
   $('tabResults').setAttribute('aria-selected', S.mode === 'results');
+  document.body.classList.toggle('resmode', S.mode === 'results');
   if(S.mode === 'results'){ $('score').hidden = true; if(window.renderResults) renderResults(); return; }
   const focus = document.activeElement && document.activeElement.id;
   let html = sheetHTML(S.items, {mode: S.mode, seed: S.seed});

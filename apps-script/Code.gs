@@ -11,7 +11,7 @@
  *  5. Гарсан ".../exec" хаягийг сайтын js/config.js файлд RESULTS_URL болгон хуулна.
  */
 
-const TEACHER_KEY = 'Math2026';   // Багшийн нууц үг: сайтын «Дүн» хэсэгт оруулна
+const TEACHER_KEY = 'ЭНИЙГ-СОЛИНО-УУ';   // Багшийн нууц үг: сайтын «Дүн» хэсэгт оруулна
 const SHEET_NAME = 'Дүн';
 const HEAD = ['Илгээсэн огноо', 'Код', 'Анги', 'Сэдэв', 'Түвшин', 'Хэлбэр', 'Нэр', 'Бүлэг',
   'Оноо', 'Нийт', 'Хувь (%)', 'Хугацаа (мин)', 'Алдсан даалгавар', 'Даалгавар бүрийн дүн', 'Сурагчийн хариу', 'Оролдлого'];
@@ -94,7 +94,7 @@ function doPost(e) {
 /** Багшийн «Дүн» хэсэгт өгөгдөл өгөх (нууц үгтэй) */
 function doGet(e) {
   const p = e.parameter || {};
-  if (p.action === 'ping') return out_({ ok: true, app: 'ajlyn-khuudas', v: 2 });
+  if (p.action === 'ping') return out_({ ok: true, app: 'ajlyn-khuudas', v: 3 });
   if (p.key !== TEACHER_KEY) return out_({ ok: false, error: 'key' });
   const sh = sheet_();
   const last = sh.getLastRow();
@@ -115,5 +115,6 @@ function doGet(e) {
   });
   const codes = Object.keys(map).map(k => ({ code: k, grade: map[k].grade, topic: map[k].topic, count: map[k].count, avg: Math.round(map[k].sum / map[k].count), last: map[k].last }))
     .sort((a, b) => (a.last < b.last ? 1 : -1));
+  if (p.all) return out_({ ok: true, codes: codes, rows: rows });  // ангийн хүснэгтэд бүх дүн нэг дор
   return out_({ ok: true, codes: codes });
 }
