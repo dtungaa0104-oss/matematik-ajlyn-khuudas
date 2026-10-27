@@ -13,11 +13,45 @@
 </head>
 <body>
 
-<div class="shell">
-  <div class="top">
-    <h1 class="brand"><span class="mark" aria-hidden="true">∑</span>Математикийн ажлын хуудас</h1>
-    <p>6–12-р анги. Тест, задгай эсвэл холимог хэлбэрээр. Сурагч цахимаар бөглөж шууд шалгуулна, багш A4 PDF татаж хэвлэнэ. Хуудас бүр шинэ тоонуудтай үүснэ.</p>
+<header class="board">
+  <div class="board-in">
+    <div class="board-text">
+      <h1 class="brand"><span class="mark" aria-hidden="true">∑</span>Математикийн ажлын хуудас</h1>
+      <p>6–12-р ангийн сурагчдад зориулсан бататгах дасгал. Сурагч цахимаар бөглөж шууд шалгуулна, багш A4 хэлбэрээр хэвлэнэ. Хуудас бүр шинэ тоогоор үүснэ.</p>
+    </div>
+    <svg class="chalk" viewBox="0 0 430 200" aria-hidden="true" focusable="false">
+      <defs><filter id="chalkTex" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="2" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="1.8"/></filter></defs>
+      <g filter="url(#chalkTex)" fill="none" stroke="#EEF0E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <!-- координатын тэнхлэг ба парабол -->
+        <path d="M18 150 H190 M184 145 l7 5 -7 5" opacity=".75"/>
+        <path d="M70 188 V22 M65 29 l5 -8 5 8" opacity=".75"/>
+        <path d="M26 30 Q70 270 114 30" stroke="#F4D35E" stroke-width="2.4"/>
+        <circle cx="70" cy="150" r="2.4" fill="#EEF0E8"/>
+        <!-- тойрогт багтсан гурвалжин -->
+        <circle cx="300" cy="98" r="64" opacity=".9"/>
+        <path d="M244 129 L356 129 L322 38 Z" stroke="#9FD8C3"/>
+        <path d="M300 98 L356 129" stroke-dasharray="4 5" opacity=".7"/>
+        <path d="M262 129 a18 18 0 0 0 -4 -12" stroke="#F4D35E"/>
+        <circle cx="300" cy="98" r="2.4" fill="#EEF0E8"/>
+        <!-- тэгш өнцөгт гурвалжин -->
+        <path d="M384 178 L424 178 L384 120 Z" opacity=".85"/>
+        <path d="M384 170 h8 v8" opacity=".85"/>
+      </g>
+      <g fill="#EEF0E8" font-family="'PT Serif', Georgia, serif" font-style="italic" opacity=".85">
+        <text x="118" y="44" font-size="15" fill="#F4D35E">y = x²</text>
+        <text x="194" y="168" font-size="14">x</text><text x="78" y="24" font-size="14">y</text>
+        <text x="236" y="146" font-size="14">A</text><text x="358" y="146" font-size="14">B</text><text x="324" y="30" font-size="14">C</text><text x="304" y="114" font-size="13">O</text>
+        <text x="270" y="122" font-size="12" fill="#F4D35E">α</text>
+        <text x="370" y="152" font-size="13">b</text><text x="400" y="194" font-size="13">a</text><text x="408" y="146" font-size="13">c</text>
+        <text x="196" y="70" font-size="20" opacity=".55">π ≈ 3,14159</text>
+        <text x="150" y="112" font-size="17" opacity=".45">√2</text>
+      </g>
+    </svg>
   </div>
+  <div class="ticker" id="ticker" aria-label="Математикийн үндсэн томьёонууд"><div class="ticker-track" id="tickerTrack"></div></div>
+</header>
+
+<div class="shell">
 
   <aside aria-label="Тохиргоо">
     <section class="panel">
@@ -114,6 +148,7 @@
 <script src="vendor/qrcode.js"></script>
 <script src="vendor/html2pdf.bundle.min.js" defer></script>
 <script src="js/app.js"></script>
+<script src="js/board.js"></script>
 <script src="js/results.js"></script>
 </body>
 </html>
