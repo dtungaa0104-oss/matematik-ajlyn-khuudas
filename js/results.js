@@ -128,7 +128,7 @@
   }
   const pctCls = v => v >= 80 ? 'g' : v >= 50 ? 'm' : 'b';
   function classModel(){
-    const all = (R.all || []).map(r => Object.assign({}, r, {u: unitOf(r.code)})).filter(r => W.GRADES.includes(r.u.g) && r.u.ch != null && LV[r.u.l]);
+    const all = (R.all || []).map(r => Object.assign({}, r, {u: unitOf(r.code)})).filter(r => W.GRADES.includes(r.u.g) && r.u.ch != null && LV[r.u.l] && Number(r.total) > 1);  // өдрийн бодлогыг (1 даалгавар) хасна
     const grades = [...new Set(all.map(r => r.u.g))].sort((a, b) => a - b);
     if(!grades.includes(R.cg)){ const last = all.reduce((m, r) => !m || r.time > m.time ? r : m, null); R.cg = last ? last.u.g : 0; }  // хамгийн сүүлд дүн ирсэн анги
     const inG = all.filter(r => r.u.g === R.cg);

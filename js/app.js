@@ -194,7 +194,8 @@ function render(){
       ${miss.length ? `<div class="small">Алдсан эсвэл хоосон: ${miss.join(', ')}-р даалгавар. Тэдгээрийн доор «${S.allowReveal ? 'Бодолтыг харах' : 'Бодох арга'}» гэсэн тайлбар бий.</div>` : '<div class="small">Бүх даалгавар зөв. Баяр хүргэе!</div>'}
       ${window.APP_CONFIG && APP_CONFIG.RESULTS_URL ? '' : '<div class="small">Үр дүнгээ «Мессежээр илгээх» товчоор багшдаа илгээнэ үү, эсвэл энэ дэлгэцийн зургийг авна уу.</div>'}
       ${window.sendStateHTML ? sendStateHTML() : ''}
-      ${pathHTML(pct)}
+      ${window.MOTIV ? MOTIV.resultHTML(pct) : ''}
+      ${S.daily ? '<p class="small">Маргааш шинэ бодлого гарна. Энэ холбоосоороо дахин ороорой.</p>' : pathHTML(pct)}
       <div class="result-actions"><button class="btn ghost" id="sendResult" type="button">Мессежээр илгээх</button>${S.allowReveal ? `<button class="btn ghost" id="revealBtn" type="button">${S.reveal ? 'Зөв хариуг нуух' : 'Зөв хариуг харах'}</button>` : ''}</div>
       <div class="status" id="sendStatus" hidden></div></div>`;
   } else if(S.mode === 'online' && S.checked){
@@ -213,7 +214,7 @@ function check(force){
   if(S.student){ const d = new Date(), z = n => String(n).padStart(2, '0'); S.doneAt = `${d.getFullYear()}.${z(d.getMonth() + 1)}.${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`; }
   S.results = S.items.map((p, i) => p.mc ? (S.choice[i] == null ? null : S.choice[i] === p.ci) : W.check(p, S.answers[i]));
   S.checked = true; stopTimer(); render();
-  if(S.student){ saveRun({done: true, doneAt: S.doneAt, timedOut: !!S.timedOut}); savePath(); render(); }
+  if(S.student){ saveRun({done: true, doneAt: S.doneAt, timedOut: !!S.timedOut}); const prev = loadPath()[S.level]; savePath(); if(window.MOTIV) MOTIV.onCheck(prev); render(); }
   if(S.student && window.submitResult) submitResult();
 }
 
@@ -315,11 +316,11 @@ const stWho = () => { const n = $('stName').value.trim(), c = $('stClass').value
 function renderStudent(){
   if(!S.student) return;
   $('studentBar').hidden = false;
-  $('sbTitle').innerHTML = Mx(esc(topicTitle()));
+  $('sbTitle').innerHTML = (S.daily ? 'Өдрийн бодлого · ' : '') + Mx(esc(topicTitle()));
   $('sbMeta').textContent = `${S.grade}-р анги · ${LV[S.level]} · ${S.items.length} даалгавар${S.limit ? ' · Хугацаа ' + S.limit + ' минут' : ''} · Код ${code()}`;
   let sp = document.getElementById('sbPath');
   if(!sp){ sp = document.createElement('div'); sp.id = 'sbPath'; const h = $('sbMeta').parentNode; if(h && h.parentNode) h.parentNode.insertBefore(sp, h.nextSibling); }
-  sp.innerHTML = S.checked ? '' : ladderHTML(loadPath());
+  sp.innerHTML = S.checked ? '' : (S.daily ? '' : ladderHTML(loadPath())) + (window.MOTIV ? MOTIV.barHTML() : '');
   $('stName').disabled = $('stClass').disabled = S.checked;
   $('clearBtn').hidden = S.checked;
   $('checkBtn').hidden = S.checked;
@@ -420,7 +421,13 @@ document.addEventListener('click', e => { if(S.student && e.target.closest('[dat
 on('sheet', 'change', () => { if(S.student) saveRun(); });
 
 load();
-const hm = (location.hash || '').match(/^#(w|s|sr)-([^~]+)(?:~(\d{1,3}))?$/), h = hm && parseCode(decodeURIComponent(hm[2]));
+/* Өдрийн бодлого: #d-9 → өнөөдрийн огнооноос тогтох нэг задгай даалгавар (чадварын түвшин). Ангийн бүх сурагчид ижил. */
+function dailyHash(){
+  const m = (location.hash || '').match(/^#d-(\d{1,2})$/); if(!m || !W.GRADES.includes(+m[1])) return null;
+  const g = +m[1], d = new Date(), n = W.topicsOf(g).length, day = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5);
+  S.daily = true; return `#s-${g}-${1 + (day * 37) % n}-2-0+1-${(d.getFullYear() % 100) * 10000 + (d.getMonth() + 1) * 100 + d.getDate()}`;
+}
+const hm = (dailyHash() || location.hash || '').match(/^#(w|s|sr)-([^~]+)(?:~(\d{1,3}))?$/), h = hm && parseCode(decodeURIComponent(hm[2]));
 S.limit = hm && hm[3] ? Math.min(240, Number(hm[3])) : 0;
 if(h && W.GRADES.includes(h.grade)){
   applyCode(h); S.mode = 'online';

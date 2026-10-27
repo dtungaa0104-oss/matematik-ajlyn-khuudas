@@ -330,3 +330,77 @@ a.btn{text-decoration:none}
 .sol-a{margin:6px 0 0}
 .sol-s li::marker{color:var(--paper-muted);font-size:13px}
 @media print{ .sol{display:none} }
+
+/* ===== Урам зориг ===== */
+@keyframes vpop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.15);opacity:1}100%{transform:scale(1)}}
+.ws-item.ok .verdict{animation:vpop .45s ease-out both}
+@media (prefers-reduced-motion:reduce){ .ws-item.ok .verdict{animation:none} }
+.chalkburst{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:60}
+.motiv{display:flex;flex-direction:column;gap:6px;border-radius:12px;padding:12px 14px;background:var(--sunk);border:1px solid var(--line)}
+.motiv.win{background:var(--board);border-color:var(--board);color:var(--chalk)}
+.motiv p{margin:0}
+.mv-msg{font-family:var(--serif);font-size:18px;font-weight:700}
+.mv-grow{font-weight:600}
+.motiv.win .mv-grow,.motiv.win .mv-star{color:var(--pencil)}
+.mv-star span{color:var(--pencil)}
+.mv-trip{font-size:14px}
+.motiv.win .btn.ghost{background:transparent;color:var(--chalk);border-color:rgba(238,240,232,.5)}
+.mv-badges{display:flex;flex-wrap:wrap;gap:6px}
+.mv-badges .badge{flex-direction:row;padding:4px 10px;border-radius:999px;font-size:13px;font-weight:600;gap:6px}
+.myprog{margin-top:6px;font-weight:600}
+.myprog span{color:#C99A06}
+/* «Миний ахиц» цонх */
+.progdlg{border:none;border-radius:16px;padding:0;width:min(760px,94vw);max-height:90vh;background:var(--surface);color:var(--ink)}
+.progdlg::backdrop{background:rgba(10,20,16,.6)}
+.progdlg[open]{display:flex;flex-direction:column;overflow:auto;padding:20px clamp(14px,4vw,28px) 26px;gap:10px}
+.progdlg h2{font-family:var(--serif);font-size:24px;margin:0}
+.progdlg h3{font-family:var(--serif);font-size:18px;margin:12px 0 0}
+.progdlg .small{margin:0}
+.pg-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.pg-sum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.pg-sum div{border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column}
+.pg-sum b{font-family:var(--serif);font-size:22px}
+.pg-sum span{font-size:12.5px;color:var(--muted)}
+.trip{list-style:none;margin:4px 0 0;padding:14px 10px;display:flex;overflow-x:auto;gap:0;background:var(--board);border-radius:12px;color:var(--chalk)}
+.trip li{flex:0 0 auto;width:84px;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;gap:4px}
+.trip li+li::before{content:"";position:absolute;top:13px;right:50%;width:100%;border-top:2px dashed rgba(238,240,232,.35);z-index:0}
+.trip li.past::before,.trip li.here::before{border-top-style:solid;border-color:var(--pencil)}
+.tr-dot{position:relative;z-index:1;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--board);border:2px solid rgba(238,240,232,.45);color:var(--pencil);font-size:14px}
+.trip li.past .tr-dot{border-color:var(--pencil)}
+.trip li.here .tr-dot{background:var(--pencil);color:var(--board);border-color:var(--pencil);box-shadow:0 0 0 5px rgba(244,211,94,.25)}
+.tr-name{font-size:12px;line-height:1.25;font-weight:600}
+.tr-need{font-size:11px;color:var(--chalk-soft)}
+.smap{border:1px solid var(--line);border-radius:10px}
+.smap summary{display:flex;justify-content:space-between;gap:10px;padding:9px 12px;cursor:pointer;font-weight:600}
+.smap-n{color:#B48A04;white-space:nowrap}
+.smap ul{list-style:none;margin:0;padding:0 12px 8px}
+.smap li{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:6px 0;border-top:1px solid var(--line)}
+.smap li.none .tp{color:var(--muted)}
+.smap .tp{flex:1 1 200px}
+.sts{display:flex;gap:2px}
+.st{font-size:19px;color:var(--line);line-height:1}
+.st.on{color:#E2B007}
+.cert-btn{min-height:34px;padding:4px 10px;font-size:13px}
+.bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.badge{display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--sunk);color:var(--muted)}
+.badge i{font-style:normal;font-size:22px}
+.badge b{font-size:14px}
+.badge small{font-size:12px;line-height:1.35}
+.badge.on{background:#FFF6D6;border-color:#E9CF72;color:#5C4600}
+.daily-box{border-top:1px dashed var(--line);margin-top:6px;padding-top:12px;display:flex;flex-direction:column;gap:8px}
+.daily-box h3{margin:0;font-family:var(--serif);font-size:16px}
+@media (max-width:560px){ .pg-sum{grid-template-columns:repeat(2,minmax(0,1fr))} }
+/* Дурсамж (PDF-д зориулсан, дэлгэцнээс гадна) */
+.certwrap{position:absolute;left:-10000px;top:0}
+.cert{width:297mm;height:209mm;box-sizing:border-box;padding:10mm;background:#FFFFFF;color:#1E3B33;font-family:'PT Serif',Georgia,serif}
+.cert-in{height:100%;box-sizing:border-box;border:3px double #22614C;outline:1.5px solid #C9A227;outline-offset:-9px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:14mm 22mm;gap:7mm;background:radial-gradient(circle at 50% 0%, #F3F8F5, #FFFFFF 60%)}
+.cert-top{font-family:'Golos Text',sans-serif;font-size:15px;letter-spacing:.08em;color:#4A6B60}
+.cert-title{font-size:58px;font-weight:700;letter-spacing:.12em;color:#22614C}
+.cert-name{font-size:36px;font-weight:700;border-bottom:1.5px solid #C9A227;padding:0 10mm 3mm}
+.cert-name span{font-size:22px;font-weight:400}
+.cert-text{font-size:19px;line-height:1.55;max-width:200mm;margin:0}
+.cert-stars{font-size:30px;color:#C9A227;letter-spacing:.3em}
+.cert-foot{width:100%;display:flex;justify-content:space-between;font-size:16px;margin-top:4mm}
+.progdlg[open]>*{flex-shrink:0}
+.motiv b{font:inherit;font-weight:700}
+.pg-sum div:first-child b{color:#B48A04}
