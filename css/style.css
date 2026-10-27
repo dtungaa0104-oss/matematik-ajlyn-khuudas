@@ -219,3 +219,5 @@ body.student main{flex:1 1 100%}
 .cnt2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 #forms{display:grid;grid-template-columns:1fr 1fr}
 #forms button{font-size:14px}
+#levels{display:grid;grid-template-columns:1.5fr 1fr 1fr}
+#levels button{font-size:14px;line-height:1.2;white-space:normal}
