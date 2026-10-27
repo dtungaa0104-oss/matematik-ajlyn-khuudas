@@ -302,3 +302,20 @@ body.student .chalk{display:none}
 body.resmode aside{display:none}
 body.resmode main{flex:1 1 100%;max-width:100%}
 .res .seg button,.watch,.sp,.mx-legend,.res .small,.res .linkbtn{font-family:var(--ui)}
+
+/* ===== Түвшнээр ахих зам ===== */
+.ladder{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px 0;align-items:center;font-family:var(--ui);font-size:14px}
+.ladder li{display:flex;align-items:center;gap:8px;color:var(--muted)}
+.ladder li+li::before{content:"";width:28px;height:2px;background:var(--line);margin:0 10px}
+.ladder li.done+li::before{background:var(--accent)}
+.lad-dot{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;border:2px solid var(--line);font-weight:700;font-size:13px;background:var(--surface);color:var(--muted)}
+.ladder li.now .lad-dot{border-color:var(--accent);color:var(--accent)}
+.ladder li.now .lad-txt{color:var(--ink);font-weight:600}
+.ladder li.done .lad-dot{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.ladder li.done .lad-txt{color:var(--ink)}
+.lad-txt em{font-style:normal;font-variant-numeric:tabular-nums;color:var(--muted);font-weight:400}
+#sbPath{margin:2px 0 4px}
+.path{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:12px;margin-top:4px}
+.path p{margin:0}
+a.btn{text-decoration:none}
+@media (max-width:480px){ .ladder li+li::before{display:none} .ladder{font-size:13px;gap:8px 14px} }

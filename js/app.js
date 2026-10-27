@@ -181,6 +181,7 @@ function render(){
       ${miss.length ? `<div class="small">Алдсан эсвэл хоосон: ${miss.join(', ')}-р даалгавар</div>` : '<div class="small">Бүх даалгавар зөв. Баяр хүргэе!</div>'}
       ${window.APP_CONFIG && APP_CONFIG.RESULTS_URL ? '' : '<div class="small">Үр дүнгээ «Мессежээр илгээх» товчоор багшдаа илгээнэ үү, эсвэл энэ дэлгэцийн зургийг авна уу.</div>'}
       ${window.sendStateHTML ? sendStateHTML() : ''}
+      ${pathHTML(pct)}
       <div class="result-actions"><button class="btn ghost" id="sendResult" type="button">Мессежээр илгээх</button>${S.allowReveal ? `<button class="btn ghost" id="revealBtn" type="button">${S.reveal ? 'Зөв хариуг нуух' : 'Зөв хариуг харах'}</button>` : ''}</div>
       <div class="status" id="sendStatus" hidden></div></div>`;
   } else if(S.mode === 'online' && S.checked){
@@ -199,7 +200,7 @@ function check(force){
   if(S.student){ const d = new Date(), z = n => String(n).padStart(2, '0'); S.doneAt = `${d.getFullYear()}.${z(d.getMonth() + 1)}.${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`; }
   S.results = S.items.map((p, i) => p.mc ? (S.choice[i] == null ? null : S.choice[i] === p.ci) : W.check(p, S.answers[i]));
   S.checked = true; stopTimer(); render();
-  if(S.student){ saveRun({done: true, doneAt: S.doneAt, timedOut: !!S.timedOut}); }
+  if(S.student){ saveRun({done: true, doneAt: S.doneAt, timedOut: !!S.timedOut}); savePath(); render(); }
   if(S.student && window.submitResult) submitResult();
 }
 
@@ -303,11 +304,14 @@ function renderStudent(){
   $('studentBar').hidden = false;
   $('sbTitle').innerHTML = Mx(esc(topicTitle()));
   $('sbMeta').textContent = `${S.grade}-р анги · ${LV[S.level]} · ${S.items.length} даалгавар${S.limit ? ' · Хугацаа ' + S.limit + ' минут' : ''} · Код ${code()}`;
+  let sp = document.getElementById('sbPath');
+  if(!sp){ sp = document.createElement('div'); sp.id = 'sbPath'; const h = $('sbMeta').parentNode; if(h && h.parentNode) h.parentNode.insertBefore(sp, h.nextSibling); }
+  sp.innerHTML = S.checked ? '' : ladderHTML(loadPath());
   $('stName').disabled = $('stClass').disabled = S.checked;
   $('clearBtn').hidden = S.checked;
   $('checkBtn').hidden = S.checked;
 }
-['stName', 'stClass'].forEach(id => $(id).addEventListener('input', () => { $(id).setCustomValidity(''); try { localStorage.setItem('ws_student', JSON.stringify({n: $('stName').value, c: $('stClass').value})); } catch(e){} }));
+['stName', 'stClass'].forEach(id => $(id).addEventListener('input', () => { $(id).setCustomValidity(''); const sp = document.getElementById('sbPath'); if(sp && !S.checked) sp.innerHTML = ladderHTML(loadPath()); try { localStorage.setItem('ws_student', JSON.stringify({n: $('stName').value, c: $('stClass').value})); } catch(e){} }));
 document.addEventListener('click', async e => {
   if(!e.target.closest('#sendResult')) return;
   const ok = S.results.filter(x => x === true).length, n = S.items.length;
@@ -330,6 +334,37 @@ on('codeForm', 'submit', e => {
   S.mode = 'online'; build();
 });
 on('codeIn', 'input', () => $('codeIn').setCustomValidity(''));
+
+/* ---------- Түвшнээр ахих зам (сурагчийн горим) ----------
+   Мэдлэг, ойлголт → Чадвар → Хэрэглээ. 80%-д хүрвэл дараагийн түвшин нээгдэнэ, хүрэхгүй бол ижил түвшний шинэ хувилбар.
+   Сурагч бүрийн хамгийн сайн дүнг энэ төхөөрөмж дээр (нэр, анги, сэдвээр) хадгална. */
+const PASS = 80;
+const pathKey = () => [$('stName').value, $('stClass').value].map(v => String(v || '').toLowerCase().replace(/\s+/g, ' ').trim()).join('|') + '|' + S.grade + '-' + S.topic;
+function loadPath(){ try { return (JSON.parse(localStorage.getItem('ws_path') || '{}') || {})[pathKey()] || {}; } catch(e){ return {}; } }
+function savePath(){
+  if(!S.student || !S.items.length) return;
+  const pct = Math.round(S.results.filter(x => x === true).length / S.items.length * 100);
+  try { const all = JSON.parse(localStorage.getItem('ws_path') || '{}') || {}, k = pathKey(), cur = all[k] || {};
+    if(!(cur[S.level] >= pct)) cur[S.level] = pct; all[k] = cur; localStorage.setItem('ws_path', JSON.stringify(all)); } catch(e){}
+}
+function nextURL(level){
+  const nmc = S.items.filter(p => p.mc).length, nop = S.items.length - nmc;
+  const seed = 1000 + Math.floor(Math.random() * 98000);
+  return location.pathname + location.search + `#${S.allowReveal ? 'sr' : 's'}-${S.grade}-${S.topic}-${level}-${nmc}+${nop}-${seed}${S.limit ? '~' + S.limit : ''}`;
+}
+function ladderHTML(best){
+  return `<ol class="ladder" aria-label="Түвшнээр ахих зам">${[1, 2, 3].map(l => { const b = best[l], st = b >= PASS ? 'done' : l === S.level ? 'now' : '';
+    return `<li class="${st}"${l === S.level ? ' aria-current="step"' : ''}><span class="lad-dot">${b >= PASS ? '✓' : l}</span><span class="lad-txt">${LV[l]}${b != null ? ` <em>${b}%</em>` : ''}</span></li>`; }).join('')}</ol>`;
+}
+function pathHTML(pct){
+  const best = loadPath(); if(!(best[S.level] >= pct)) best[S.level] = pct;
+  let msg, btn;
+  if(pct >= PASS && S.level < 3){ msg = `Та «${LV[S.level]}» түвшинг давлаа. Дараагийн «${LV[S.level + 1]}» түвшин нээгдлээ.`; btn = `<a class="btn" href="${nextURL(S.level + 1)}" data-go>«${LV[S.level + 1]}» түвшинд шилжих</a>`; }
+  else if(pct >= PASS){ msg = 'Та энэ сэдвийн гурван түвшнийг бүгдийг давлаа. Баяр хүргэе!'; btn = `<a class="btn ghost" href="${nextURL(3)}" data-go>Шинэ хувилбараар дахин бататгах</a>`; }
+  else { msg = `Дараагийн түвшин нээгдэхэд ${PASS}% хэрэгтэй. Алдсан даалгавраа нягталж, ижил түвшний шинэ хувилбарыг бөглөөрэй.`; btn = `<a class="btn" href="${nextURL(S.level)}" data-go>Шинэ хувилбар бөглөх</a>`; }
+  return `<div class="path">${ladderHTML(best)}<p class="small">${msg}</p><div class="result-actions">${btn}</div></div>`;
+}
+document.addEventListener('click', e => { const a = e.target.closest('a[data-go]'); if(!a) return; e.preventDefault(); location.href = a.getAttribute('href'); location.reload(); });
 
 /* ---------- Гүйцэтгэх хугацаа (сурагчийн горим) ----------
    Явцыг энэ төхөөрөмж дээр (код бүрээр) хадгална: эхэлсэн цаг, нэр, хариу. Хуудсыг дахин ачаалсан ч цаг шинээр эхлэхгүй. */
