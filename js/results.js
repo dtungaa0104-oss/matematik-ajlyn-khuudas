@@ -81,7 +81,7 @@
     try { res = await fetch(url + '?action=ping'); text = await res.text(); }
     catch(e){ return {ok: false, msg: 'Скрипт хандалт зөвшөөрөхгүй байна. Apps Script → Управление развертываниями → ✏️ → «У кого есть доступ: Все» (Anyone) болгож, «Версия: Новая версия» сонгоод «Развернуть» дарна уу. Сургуулийн (Workspace) бүртгэлд «Все» сонголт байхгүй бол хувийн Gmail бүртгэлээр скриптээ үүсгэнэ үү.'}; }
     let j = null; try { j = JSON.parse(text); } catch(e){}
-    if(j && j.ok && j.app === 'ajlyn-khuudas') return (j.v || 1) < 2 ? {ok: false, msg: 'Холболт хэвийн, гэхдээ скрипт хуучин хувилбартай: «10+5» хэлбэрийн шинэ кодтой дүнг хүлээж авахгүй. apps-script/Code.gs-ийн шинэ кодыг хуулж тавиад «Управление развертываниями → ✏️ → Новая версия → Развернуть» хийнэ үү.'} : (j.v || 1) < 6 ? {ok: true, msg: `Холболт хэвийн ✓ Дүн цуглуулалт ажиллаж байна (v${j.v || 1}). Ангийн хамтын зорилго, нэрсийн жагсаалт, улирал архивлах боломжийг ашиглах бол apps-script/Code.gs-ийн шинэ кодыг (v6) хуулж тавиад «Новая версия» болгон дахин байршуулна уу.`} : {ok: true, msg: 'Холболт хэвийн ✓ Скрипт хамгийн сүүлийн хувилбартай (v6).'};
+    if(j && j.ok && j.app === 'ajlyn-khuudas') return (j.v || 1) < 2 ? {ok: false, msg: 'Холболт хэвийн, гэхдээ скрипт хуучин хувилбартай: «10+5» хэлбэрийн шинэ кодтой дүнг хүлээж авахгүй. apps-script/Code.gs-ийн шинэ кодыг хуулж тавиад «Управление развертываниями → ✏️ → Новая версия → Развернуть» хийнэ үү.'} : (j.v || 1) < 8 ? {ok: true, msg: `Холболт хэвийн ✓ Дүн цуглуулалт ажиллаж байна (v${j.v || 1}). Нэгжийн шалгалт, алдаа мэдээлэх, хамтын зорилго, нэрсийн жагсаалт, архивлах боломжийг ашиглах бол apps-script/Code.gs-ийн шинэ кодыг (v8) хуулж тавиад «Новая версия» болгон дахин байршуулна уу.`} : {ok: true, msg: 'Холболт хэвийн ✓ Скрипт хамгийн сүүлийн хувилбартай (v8).'};
     if(j && j.ok === false && j.error === 'key') return {ok: false, msg: 'Скрипт хуучин хувилбартай байна. Code.gs-ийг шинэчлээд «Управление развертываниями → ✏️ → Новая версия → Развернуть» хийнэ үү.'};
     if(/<html/i.test(text || '')) return {ok: false, msg: 'Скриптээс HTML хуудас ирлээ (нэвтрэх хуудас эсвэл алдаа). Хандах эрх «Все» эсэх, Code.gs бүтэн хадгалагдсан эсэхийг шалгаад шинэ хувилбараар дахин байршуулна уу.'};
     return {ok: false, msg: 'Скриптийн хариу танигдсангүй (HTTP ' + (res && res.status) + ').'};
@@ -128,7 +128,7 @@
       else {
         try { localStorage.setItem('ws_tkey', R.key); } catch(e){}
         R.codes = j.codes || R.codes || [];
-        loadGoals(); loadRosters(); loadArchives(); R.archive = '';
+        loadGoals(); loadRosters(); loadArchives(); loadReports(); R.archive = '';
         if(Array.isArray(j.rows)) R.all = j.rows;
         else {
           const q = R.codes.map(c => c.code), out = [], n = q.length; let done = 0;
@@ -141,7 +141,7 @@
     R.loading = false; renderResults();
   }
 
-  window.resultsReset = () => { Object.assign(R, {codes: null, rows: null, all: null, code: '', stu: '', goals: null, goalsOld: false, rosters: null, rostersOld: false, note: '', diag: null}); if(S.mode === 'results') renderResults(); };
+  window.resultsReset = () => { Object.assign(R, {codes: null, rows: null, all: null, code: '', stu: '', goals: null, goalsOld: false, reports: null, reportsOld: false, rosters: null, rostersOld: false, note: '', diag: null}); if(S.mode === 'results') renderResults(); };
 
   /* ---------- Улирал архивлах ---------- */
   const codesFrom = rows => { const m = {}; rows.forEach(r => { const e = m[r.code] || (m[r.code] = {code: r.code, grade: r.grade, topic: r.topic, count: 0, sum: 0, last: ''}); e.count++; e.sum += r.pct; if(r.time > e.last) e.last = r.time; });
@@ -178,6 +178,26 @@
       ${R.archives.length ? `<ul class="archives">${R.archives.map(a => `<li><b>${esc(a.name)}</b> · ${a.rows} мөр <button class="linkbtn small" type="button" data-archopen="${esc(a.name)}">Харах</button></li>`).join('')}</ul>` : ''}
       <form class="goal-form" id="archForm"><label class="f" style="flex:2 1 260px">Архивын нэр<input id="archName" maxlength="80" value="${esc(def)}"></label><button class="btn ghost" type="submit">Одоогийн дүнг архивлах</button></form>
       ${R.archMsg ? `<div class="status" role="status">${esc(R.archMsg)}</div>` : ''}`;
+  }
+
+  /* ---------- Санал хүсэлт, даалгаврын алдаа (багш) ---------- */
+  async function loadReports(){
+    try { const j = await api({key: R.key, action: 'reports'}); R.reports = j && j.ok && Array.isArray(j.reports) ? j.reports : null; R.reportsOld = !(j && j.ok && Array.isArray(j.reports)); }
+    catch(e){ R.reports = null; R.reportsOld = true; }
+    if(!R.loading) renderResults();
+  }
+  function reportsHTML(){
+    if(R.archive) return '';
+    if(R.reportsOld) return `<h3 class="res-h3">Санал хүсэлт, алдааны мэдээлэл</h3><p class="small">Сурагчдын илгээсэн «даалгаварт алдаа байна» гэсэн мэдээлэл болон санал хүсэлтийг энд харахын тулд apps-script/Code.gs-ийн шинэ кодыг (v8) хуулж тавиад «Новая версия» болгон дахин байршуулна уу.</p>`;
+    if(!R.reports) return '';
+    const n = R.reports.length;
+    if(!n) return `<h3 class="res-h3">Санал хүсэлт, алдааны мэдээлэл</h3><p class="small">Одоогоор ирсэн мэдээлэл алга. Сурагч шалгасны дараа даалгавар бүрийн доорх «Даалгаварт алдаа байна уу?» холбоосоор, эсвэл хуудасны доод талын «Санал хүсэлт» товчоор илгээнэ.</p>`;
+    const rows = R.reports.slice(0, 40).map(r => `<li><div class="rp-top"><b>${esc(r.kind)}</b><span>${esc(r.time)}</span>${r.name ? `<span>${esc(r.name)}${r.group ? ' · ' + esc(r.group) : ''}</span>` : ''}</div>
+      ${r.code ? `<div class="small">Код <a href="#w-${esc(r.code)}" data-go>${esc(r.code)}</a>${r.n ? ` · ${esc(r.n)}-р даалгавар` : ''}</div>` : ''}
+      ${r.q ? `<div class="rp-q">${Mx(esc(r.q))}</div>` : ''}${r.ans || r.right ? `<div class="small">Өгсөн хариу: <b>${Mx(esc(r.ans || '—'))}</b> · Сайтын хариу: <b>${Mx(esc(r.right || '—'))}</b></div>` : ''}
+      ${r.note ? `<p class="rp-note">${esc(r.note)}</p>` : ''}</li>`).join('');
+    return `<details class="rp-box"><summary><h3 class="res-h3">Санал хүсэлт, алдааны мэдээлэл <span class="rp-n">${n}</span></h3></summary>
+      <p class="small">Хамгийн сүүлийн ${Math.min(n, 40)} мэдээлэл. Бүгд Google хүснэгтийн «Санал» хуудсанд хадгалагдана. Даалгаврын алдаа гэж мэдээлсэн бол кодыг нээж шалгаад, үнэхээр алдаатай бол сайт хөгжүүлэгчид дамжуулаарай.</p><ul class="reports">${rows}</ul></details>`;
   }
 
   /* ---------- Ангийн нэрсийн жагсаалт (багш) ---------- */
@@ -304,6 +324,11 @@
     if(t === 0) ch = 0; else if(t > 100) ch = t - 100; else { const tp = (W.topicsOf(g) || [])[t - 1]; ch = tp && tp.ch != null ? tp.ch : null; }
     return {g, t, l, ch};
   }
+  /* Нэгжийн шалгалтын мөрийг түвшин бүрийн дүн болгон задлана (даалгавар бүрийн 0/1 дүнгээр) */
+  function unitLevels(r){
+    const items = sheetOf(r.code) || [], d = String(r.detail || '');
+    return [1, 2, 3].map(l => { const idx = items.map((p, i) => p.lvl === l ? i : -1).filter(i => i >= 0); return {l, n: idx.length, pct: idx.length ? Math.round(idx.filter(i => d[i] === '1').length / idx.length * 100) : null}; }).filter(x => x.n);
+  }
   const pctCls = v => v >= 80 ? 'g' : v >= 50 ? 'm' : 'b';
   function classModel(){
     const all = (R.all || []).map(r => Object.assign({}, r, {u: unitOf(r.code)})).filter(r => W.GRADES.includes(r.u.g) && r.u.ch != null && LV[r.u.l] && Number(r.total) > 1);  // өдрийн бодлогыг (1 даалгавар) хасна
@@ -323,7 +348,7 @@
       let s = st.get(k); if(!s) st.set(k, s = {k, name: String(r.name).trim(), group: String(r.group).trim(), cells: {}, list: []});
       s.list.push(r);
       const c = s.cells[r.u.ch] || (s.cells[r.u.ch] = {1: [], 2: [], 3: []});
-      c[r.u.l].push(r.pct);
+      if(r.u.l === 4){ unitLevels(r).forEach(x => c[x.l].push(x.pct)); } else c[r.u.l].push(r.pct);
     });
     const students = [...st.values()];
     students.forEach(s => {
@@ -351,7 +376,7 @@
     const M = classModel(), g = R.cg;
     const head = `<div class="res-head"><h2 class="p-topic" style="font-size:24px;margin:0">Ангийн дүнгийн хүснэгт</h2>
         <div class="row"><button class="btn ghost" id="resReloadAll" type="button">Шинэчлэх</button><button class="btn ghost" id="resLogout" type="button">Гарах</button></div></div>${viewSwitch()}`;
-    if(!M.grades.length) return `<section class="paper res">${head}<p>Одоогоор илгээсэн дүн алга. Сурагчдад холбоос өгсний дараа энд гарна.</p>${R.archive ? '' : goalsHTML(M) + rosterHTML(M)}${archiveHTML()}${diagHTML()}</section>`;
+    if(!M.grades.length) return `<section class="paper res">${head}<p>Одоогоор илгээсэн дүн алга. Сурагчдад холбоос өгсний дараа энд гарна.</p>${R.archive ? '' : goalsHTML(M) + rosterHTML(M)}${reportsHTML()}${archiveHTML()}${diagHTML()}</section>`;
     const filt = `<div class="res-tools">
         <label class="f inline">Анги <select id="cGrade">${M.grades.map(x => `<option value="${x}" ${x === g ? 'selected' : ''}>${x}-р анги</option>`).join('')}</select></label>
         <label class="f inline">Бүлэг <select id="cGroup"><option value="">Бүх бүлэг</option>${M.groups.map(([k, v]) => `<option value="${esc(k)}" ${k === R.cgrp ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
@@ -377,10 +402,35 @@
     const grpNames = R.cgrp ? M.groups.filter(([k]) => k === R.cgrp).map(x => x[1]) : (R.rosters || []).map(r => r.label).filter(l => M.groups.some(([k]) => k === NK(l)));
     const miss = missingHTML(M.rs, grpNames, 'Нэг ч ажил илгээгээгүй сурагчид');
     return `<section class="paper res">${head}${filt}${stats}${miss}${watch}${units}
+      ${weeklyHTML(M.rs)}
       <h3 class="res-h3">Сурагч × нэгж</h3>${legend}
       <div class="tbl-wrap"><table class="rtable mxt"><thead><tr><th class="num">№</th><th class="mx-name">Нэр</th><th>Бүлэг</th>${th}<th class="num">Дундаж</th></tr></thead><tbody>${body}${foot}</tbody></table></div>
-      ${R.note ? `<div class="status ok" role="status">${esc(R.note)}</div>` : ''}${R.archive ? '' : goalsHTML(M) + rosterHTML(M)}${archiveHTML()}${diagHTML()}</section>`;
+      ${R.note ? `<div class="status ok" role="status">${esc(R.note)}</div>` : ''}${R.archive ? '' : goalsHTML(M) + rosterHTML(M)}${reportsHTML()}${archiveHTML()}${diagHTML()}</section>`;
   }
+  /* ---------- Ахицын график (нэг цуваа, 0–100%, 80%-ийн босго) ---------- */
+  function lineChart(pts, label){
+    if(pts.length < 2) return '';
+    const W0 = Math.round(Math.min(640, Math.max(300, (window.innerWidth || 640) - 64))), H0 = W0 < 480 ? 180 : 210, L = 36, Rr = 14, T = 12, B = 30, iw = W0 - L - Rr, ih = H0 - T - B;
+    const X = i => L + (pts.length === 1 ? iw / 2 : i * iw / (pts.length - 1)), Y = v => T + ih - v / 100 * ih;
+    const grid = [0, 50, 100].map(v => `<line x1="${L}" x2="${W0 - Rr}" y1="${Y(v)}" y2="${Y(v)}" class="ch-grid"/><text x="${L - 6}" y="${Y(v) + 4}" class="ch-ax" text-anchor="end">${v}%</text>`).join('');
+    const thr = `<line x1="${L}" x2="${W0 - Rr}" y1="${Y(80)}" y2="${Y(80)}" class="ch-thr"/><text x="${W0 - Rr}" y="${Y(80) - 5}" class="ch-ax" text-anchor="end">80% давах босго</text>`;
+    const path = pts.map((p, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(p.y).toFixed(1)).join(' ');
+    const dots = pts.map((p, i) => `<g class="ch-pt" tabindex="0" aria-label="${esc(p.t)}"><title>${esc(p.t)}</title><circle cx="${X(i).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="12" class="ch-hit"/><circle cx="${X(i).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="4.5" class="ch-dot"/></g>`).join('');
+    const xl = `<text x="${L}" y="${H0 - 8}" class="ch-ax">${esc(pts[0].x)}</text><text x="${W0 - Rr}" y="${H0 - 8}" class="ch-ax" text-anchor="end">${esc(pts[pts.length - 1].x)}</text>`;
+    const first = pts[0].y, last = pts[pts.length - 1].y;
+    return `<figure class="chart"><svg viewBox="0 0 ${W0} ${H0}" role="img" aria-label="${esc(label)}: эхлэл ${first}%, сүүлд ${last}%">${grid}${thr}<path d="${path}" class="ch-line"/>${dots}${xl}</svg></figure>`;
+  }
+  const dayOf = t => { const m = String(t).match(/(\d{4})[.-](\d{2})[.-](\d{2})/); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; };
+  function weeklyHTML(rs){
+    const wk = {};
+    rs.forEach(r => { const d = dayOf(r.time); if(!d) return; const mon = new Date(d); mon.setDate(d.getDate() - (d.getDay() + 6) % 7);
+      const k = mon.getFullYear() + '.' + String(mon.getMonth() + 1).padStart(2, '0') + '.' + String(mon.getDate()).padStart(2, '0'); const e = wk[k] || (wk[k] = {s: 0, n: 0}); e.s += r.pct; e.n++; });
+    const keys = Object.keys(wk).sort().slice(-16); if(keys.length < 2) return '';
+    const pts = keys.map(k => { const y = Math.round(wk[k].s / wk[k].n); return {x: k.slice(5) + '-ны 7 хоног', y, t: `${k}-нд эхэлсэн 7 хоног: дундаж ${y}%, ${wk[k].n} ажил`}; });
+    pts[0].x = keys[0]; pts[pts.length - 1].x = keys[keys.length - 1];
+    return `<h3 class="res-h3">Ангийн дундаж, 7 хоног бүрээр</h3><p class="small">Тухайн 7 хоногт илгээсэн бүх ажлын дундаж хувь. Цэг дээр заахад дэлгэрэнгүй харагдана.</p>${lineChart(pts, 'Ангийн 7 хоног бүрийн дундаж')}`;
+  }
+
   function studentHTML(){
     const M = classModel(), s = M.students.find(x => x.k === R.stu);
     if(!s){ R.stu = ''; return classHTML(); }
@@ -391,6 +441,7 @@
       <h2 class="p-topic" style="font-size:24px;margin:4px 0 0">${esc(s.name)}</h2><div class="small">${esc(s.group)} · ${R.cg}-р анги · ${s.list.length} ажил${s.avg != null ? ' · дундаж ' + s.avg + '%' : ''}</div></div>
       <div class="row"><button class="btn" id="stuReport" type="button">Эцэг эхэд тайлан (PDF)</button></div></div>
       ${s.flags.length ? `<h3 class="res-h3">Анхаарах нэгж</h3><p class="small">Дарахад давтлагын хуудасны холбоос хуулагдана.</p><div class="w-flags">${s.flags.map(f => flagBtn(f, R.cg)).join('')}</div>` : ''}
+      ${s.list.length >= 2 ? `<h3 class="res-h3">Ахицын график</h3><p class="small">Илгээсэн ажил бүрийн хувь, цаг хугацааны дарааллаар${s.list.length > 40 ? ' (сүүлийн 40)' : ''}. Цэг дээр заахад сэдэв, огноо харагдана.</p>${lineChart(s.list.slice(-40).map(r => ({x: String(r.time).slice(0, 10), y: r.pct, t: `${r.time} · ${String(r.topic).replace(/<[^>]+>/g, '')} · ${LV[r.u.l]}: ${r.pct}%`})), 'Сурагчийн ахиц')}` : ''}
       <h3 class="res-h3">Нэгж, түвшин бүрийн ахиц (оролдлогын дарааллаар)</h3><div class="sp">${prog}</div>
       <h3 class="res-h3">Бүх ажил</h3><div class="tbl-wrap"><table class="rtable"><thead><tr><th>Огноо</th><th>Сэдэв</th><th>Түвшин</th><th class="num">Оноо</th><th class="num">%</th><th>Даалгавар</th><th>Код</th></tr></thead><tbody>${list}</tbody></table></div>
       ${R.note ? `<div class="status ok" role="status">${esc(R.note)}</div>` : ''}</section>`;
@@ -444,7 +495,8 @@
   }
   /* Кодоос хуудсыг дахин үүсгэж, сурагчдын буруу хариултыг алдааны төрлөөр нэгтгэнэ */
   const MISL = {sign: 'Тэмдгийн алдаа', place: '10 дахин зөрүү (таслал, нэгж)', double: '2 дахин зөрүү', recip: 'Урвуу тоо', round: 'Тоймлолтын алдаа', near: 'Тооцооны жижиг алдаа', swap: 'Утгын байр сольсон', missing: 'Шийд дутуу'};
-  function sheetOf(c){ const pc = parseCode(c); if(!pc) return null; try { return W.makeSheet(pc.grade, pc.topic, pc.level, pc.mc != null ? pc.mc + pc.op : pc.count, pc.seed, pc.mc != null ? {mc: pc.mc} : pc.form); } catch(e){ return null; } }
+  const sheetCache = {};
+  function sheetOf(c){ if(sheetCache[c]) return sheetCache[c]; const pc = parseCode(c); if(!pc) return null; if(pc.unit) return (sheetCache[c] = W.makeUnit(pc.grade, pc.topic, pc.unit, pc.seed)); try { return W.makeSheet(pc.grade, pc.topic, pc.level, pc.mc != null ? pc.mc + pc.op : pc.count, pc.seed, pc.mc != null ? {mc: pc.mc} : pc.form); } catch(e){ return null; } }
   function mistakesHTML(rows){
     const items = sheetOf(R.code); if(!items || typeof answerVals !== 'function') return '';
     const cnt = {}, where = {};
@@ -460,6 +512,11 @@
     const ks = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]);
     if(!ks.length) return '';
     return `<h3 class="res-h3">Түгээмэл алдаа</h3><ul class="mist">${ks.map(k => `<li><b>${MISL[k]}</b>: ${cnt[k]} удаа <span class="small">(${[...where[k]].sort((a, b) => a - b).join(', ')}-р даалгавар)</span></li>`).join('')}</ul>`;
+  }
+  function unitDetailHTML(rows){
+    const pc = parseCode(R.code); if(!pc || !pc.unit || !rows.length) return '';
+    const per = [1, 2, 3].map(l => { const v = rows.map(r => unitLevels(r).find(x => x.l === l)).filter(Boolean); return v.length ? {l, avg: Math.round(v.reduce((a, x) => a + x.pct, 0) / v.length), weak: v.filter(x => x.pct < 50).length} : null; }).filter(Boolean);
+    return `<h3 class="res-h3">Нэгжийн шалгалт: түвшин тус бүрийн дүн</h3><div class="stats">${per.map(x => `<div><b>${x.avg}%</b><span>${LV[x.l]} · ${x.weak} сурагч 50%-иас доош</span></div>`).join('')}</div>`;
   }
   /* Оношлох тестийн дүнгээр гурван бүлэг */
   function groupsHTML(rows){
@@ -506,7 +563,7 @@
       ${weakItems.length ? `<p class="small">Ангиараа давтах шаардлагатай: <b>${weakItems.join(', ')}</b>-р даалгавар (50%-иас бага зөв).</p>` : '<p class="small">Бүх даалгаврыг сурагчдын талаас илүү нь зөв гүйцэтгэжээ.</p>'}
       <div class="res-tools"><label class="check"><input type="checkbox" id="resFirst" ${R.firstOnly ? 'checked' : ''}> Зөвхөн эхний оролдлого${all !== n || !R.firstOnly ? '' : ''}</label>
         <label class="f" style="flex-direction:row;align-items:center;gap:8px">Эрэмбэ <select id="resSort"><option value="name" ${R.sort === 'name' ? 'selected' : ''}>Бүлэг, нэрээр</option><option value="score" ${R.sort === 'score' ? 'selected' : ''}>Оноогоор</option></select></label></div>
-      ${missingHTML(R.rows || [], [...new Set((R.rows || []).map(r => String(r.group).trim()).filter(Boolean))], 'Энэ ажлыг илгээгээгүй сурагчид')}${mistakesHTML(rows)}${groupsHTML(R.rows || [])}${R.note ? `<div class="status ok" role="status">${esc(R.note)}</div>` : ''}
+      ${unitDetailHTML(rows)}${missingHTML(R.rows || [], [...new Set((R.rows || []).map(r => String(r.group).trim()).filter(Boolean))], 'Энэ ажлыг илгээгээгүй сурагчид')}${mistakesHTML(rows)}${groupsHTML(R.rows || [])}${R.note ? `<div class="status ok" role="status">${esc(R.note)}</div>` : ''}
       <div class="tbl-wrap"><table class="rtable"><thead><tr><th class="num">№</th><th>Нэр</th><th>Бүлэг</th><th class="num">Оноо</th><th class="num">%</th><th>Даалгавар (ногоон — зөв)</th><th class="num">Мин</th><th class="num">Оролд.</th><th>Огноо</th></tr></thead><tbody>${body}</tbody></table></div>`
       : '<p>Энэ кодоор илгээсэн дүн алга.</p>'}
     </section>`;

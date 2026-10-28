@@ -1921,6 +1921,12 @@
     items.forEach(p => { p.q = polish(p.q); p.show = polish(p.show); if(p.mc) p.mc = p.mc.map(polish); if(p.sol) p.sol = p.sol.map(polish); });
     return items;
   }
+  /* Нэгжийн шалгалт: гурван түвшнийг нэг хуудсанд. Мэдлэг, ойлголт = А хэсэг (сонгох), чадвар ба хэрэглээ = Б хэсэг (задгай) */
+  function makeUnit(grade, topicIdx, counts, seed){
+    const out = [];
+    [1, 2, 3].forEach(l => { const n = counts[l - 1]; if(!n) return; makeSheet(grade, topicIdx, l, n, seed + l * 1009, l === 1 ? 1 : 0).forEach(p => out.push(Object.assign(p, {lvl: l}))); });
+    return out;
+  }
   function parseVal(s){
     s = String(s).trim().replace(/[−–]/g, '-').replace(/[·×]/g, '*').replace(/[:÷]/g, '/').replace(/\s+/g, '').replace(/°/g, '').replace(/π$/, '');
     if(/^-?\d+,\d+$/.test(s)) s = s.replace(',', '.');
@@ -1944,5 +1950,5 @@
     const v = parseVal(s);
     return !isNaN(v) && Math.abs(v - p.v[0]) < 1e-6;
   }
-  window.WS = { GRADES, TOPICS: T, topicsOf, makeSheet, check, mkind, parseVal, pretty, CHAPTERS: { 6: CH6, 7: CH7, 8: CH8, 9: CH9, 10: CH10, 11: CH11, 12: CH12 }, BOOKS: {} };
+  window.WS = { GRADES, TOPICS: T, topicsOf, makeSheet, makeUnit, check, mkind, parseVal, pretty, CHAPTERS: { 6: CH6, 7: CH7, 8: CH8, 9: CH9, 10: CH10, 11: CH11, 12: CH12 }, BOOKS: {} };
 })();

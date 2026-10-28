@@ -1,24 +1,27 @@
 /* Математикийн ажлын хуудас — хуудасны логик */
 const W = window.WS;
-const LV = {1: 'Мэдлэг, ойлголт', 2: 'Чадвар', 3: 'Хэрэглээ'};
+const LV = {1: 'Мэдлэг, ойлголт', 2: 'Чадвар', 3: 'Хэрэглээ', 4: 'Нэгжийн шалгалт'};
 const LETTER = ['А', 'Б', 'В', 'Г'];
 const FORMS = {0: 'Задгай', 1: 'Тест', 2: 'Холимог'};
 const PRESETS = [[10, 0, 'Тест 10'], [0, 10, 'Задгай 10'], [5, 5, '5 + 5'], [10, 5, '10 + 5']];
 const S = { form: 0, choice: {}, grade: 8, topic: 0, level: 1, count: 10, seed: 1000 + Math.floor(Math.random() * 9000), mode: 'online', answers: {}, checked: false, reveal: false, items: [], student: false, allowReveal: false, mc: 5, op: 5, legacy: null };
 /* Даалгаврын тоо: сонгох (mc) ба задгай (op). Хуучин кодыг (тоо + хэлбэр) legacy-д хадгалж яг ижил хуудсыг гаргана. */
-const total = () => S.legacy ? S.legacy.count : S.mc + S.op;
+const total = () => S.level === 4 && S.unit ? S.unit[0] + S.unit[1] + S.unit[2] : S.legacy ? S.legacy.count : S.mc + S.op;
 const formArg = () => S.legacy ? S.legacy.form : {mc: S.mc};
-const formLabel = () => { if(S.legacy) return FORMS[S.legacy.form]; return S.mc && S.op ? `${S.mc} сонгох + ${S.op} задгай` : S.mc ? 'Тест' : 'Задгай'; };
+const formLabel = () => { if(S.level === 4 && S.unit) return `${S.unit[0]} мэдлэг, ${S.unit[1]} чадвар, ${S.unit[2]} хэрэглээ`; if(S.legacy) return FORMS[S.legacy.form]; return S.mc && S.op ? `${S.mc} сонгох + ${S.op} задгай` : S.mc ? 'Тест' : 'Задгай'; };
 function applyLegacy(count, form){ count = Math.max(1, Math.min(40, count)); S.legacy = {count, form}; const m = form === 1 ? count : form === 2 ? Math.ceil(count / 2) : 0; S.mc = m; S.op = count - m; }
 function parseCode(str){
-  const m = String(str).match(/^(\d{1,2})-(\d{1,3})-([123])-(?:(\d{1,2})\+(\d{1,2})|(\d{1,2})-([012])|(\d{1,2}))-(\d{1,6})$/);
+  const m = String(str).match(/^(\d{1,2})-(\d{1,3})-([1234])-(?:(\d{1,2})\+(\d{1,2})|(\d{1,2})-([012])|(\d{1,2})\.(\d{1,2})\.(\d{1,2})|(\d{1,2}))-(\d{1,6})$/);
   if(!m) return null;
-  const r = {grade: Number(m[1]), topic: Number(m[2]), level: Number(m[3]), seed: Number(m[9])};
+  const r = {grade: Number(m[1]), topic: Number(m[2]), level: Number(m[3]), seed: Number(m[12])};
+  if((r.level === 4) !== (m[8] != null)) return null;
+  if(m[8] != null){ r.unit = [Number(m[8]), Number(m[9]), Number(m[10])]; const n = r.unit[0] + r.unit[1] + r.unit[2]; if(n < 1 || n > 40) return null; return r; }
+  if(m[11] != null){ r.count = Number(m[11]); r.form = 0; return r; }
   if(m[4] != null){ r.mc = Number(m[4]); r.op = Number(m[5]); if(r.mc + r.op < 1 || r.mc + r.op > 40) return null; }
-  else { r.count = Number(m[6] ?? m[8]); r.form = m[7] != null ? Number(m[7]) : 0; }
+  else { r.count = Number(m[6]); r.form = Number(m[7]); }
   return r;
 }
-function applyCode(r){ Object.assign(S, {grade: r.grade, topic: r.topic, level: r.level, seed: r.seed}); if(r.mc != null){ S.mc = r.mc; S.op = r.op; S.legacy = null; } else applyLegacy(r.count, r.form); }
+function applyCode(r){ Object.assign(S, {grade: r.grade, topic: r.topic, level: r.level, seed: r.seed}); if(r.unit){ S.unit = r.unit.slice(); return; } if(r.mc != null){ S.mc = r.mc; S.op = r.op; S.legacy = null; } else applyLegacy(r.count, r.form); }
 const $ = id => document.getElementById(id);
 /* Дүн хүлээн авах хаяг. Эрэмбэ: сурагчийн холбоос дахь @ID → энэ хөтөч дээр багшийн оруулсан хаяг → js/config.js.
    Ингэснээр нэг сайтыг олон багш тус тусын Google хүснэгттэйгээр ашиглана. */
@@ -57,9 +60,9 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 let downloads = null;
 if(window.claude && window.claude.use) window.claude.use('downloads').then(d => { downloads = d; }).catch(() => {});
 
-function load(){ try { const v = JSON.parse(localStorage.getItem('ws_prefs') || '{}'); Object.assign(S, {grade: v.grade || S.grade, topic: v.topic ?? S.topic, level: v.level || S.level}); if(v.mc != null && v.op != null){ S.mc = v.mc; S.op = v.op; } else if(v.count) applyLegacy(v.count, v.form ?? 0); S.legacy = null; if(S.mc + S.op < 1) S.op = 10; $('school').value = v.school || ''; } catch(e){} }
-function save(){ if(S.student) return; try { localStorage.setItem('ws_prefs', JSON.stringify({grade: S.grade, topic: S.topic, level: S.level, mc: S.mc, op: S.op, school: $('school').value})); } catch(e){} }
-const code = (seed = S.seed) => S.legacy ? `${S.grade}-${S.topic}-${S.level}-${S.legacy.count}-${S.legacy.form}-${seed}` : `${S.grade}-${S.topic}-${S.level}-${S.mc}+${S.op}-${seed}`;
+function load(){ try { const v = JSON.parse(localStorage.getItem('ws_prefs') || '{}'); Object.assign(S, {grade: v.grade || S.grade, topic: v.topic ?? S.topic, level: v.level || S.level, unit: Array.isArray(v.unit) ? v.unit : null}); if(v.mc != null && v.op != null){ S.mc = v.mc; S.op = v.op; } else if(v.count) applyLegacy(v.count, v.form ?? 0); S.legacy = null; if(S.mc + S.op < 1) S.op = 10; $('school').value = v.school || ''; } catch(e){} }
+function save(){ if(S.student) return; try { localStorage.setItem('ws_prefs', JSON.stringify({grade: S.grade, topic: S.topic, level: S.level, unit: S.unit, mc: S.mc, op: S.op, school: $('school').value})); } catch(e){} }
+const code = (seed = S.seed) => S.level === 4 && S.unit ? `${S.grade}-${S.topic}-4-${S.unit.join('.')}-${seed}` : S.legacy ? `${S.grade}-${S.topic}-${S.level}-${S.legacy.count}-${S.legacy.form}-${seed}` : `${S.grade}-${S.topic}-${S.level}-${S.mc}+${S.op}-${seed}`;
 const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
 const chaptersOf = g => (W.CHAPTERS || {})[g] || null;
 const validTopic = (g, t) => t === 0 || (t >= 1 && t <= W.topicsOf(g).length) || (t > 100 && !!chaptersOf(g) && !!chaptersOf(g)[t - 100]);
@@ -96,6 +99,7 @@ function controls(){
   $('mcCount').value = String(Math.min(20, S.mc)); $('opCount').value = String(Math.min(20, S.op));
   $('cntNote').textContent = `Нийт ${S.mc + S.op} даалгавар: ${S.mc} сонгох, ${S.op} задгай.`;
   $('levels').innerHTML = [1, 2, 3].map(l => `<button type="button" data-l="${l}" aria-pressed="${l === S.level}">${LV[l]}</button>`).join('');
+  unitControls();
   $('codeOut').textContent = code();
   if(typeof updateShare === 'function') updateShare();
 }
@@ -172,7 +176,7 @@ function sheetHTML(items, opts){
         ${misHTML(p, i, st)}${hintHTML(p, i)}
         ${S.checked && S.reveal && st !== true ? `<div class="reveal">Зөв хариу: <b>${Mx(p.show)}</b></div>` : ''}`;
     }
-    return `<li class="${cls}"><span class="p-n">${i + 1}.</span><div class="p-q">${Mx(p.q)}</div>${p.fig ? `<div class="p-fig">${p.fig}</div>` : ''}${tail}${mode === 'online' ? solHTML(p, i, st) : ''}</li>`;
+    return `<li class="${cls}"><span class="p-n">${i + 1}.</span><div class="p-q">${Mx(p.q)}</div>${p.fig ? `<div class="p-fig">${p.fig}</div>` : ''}${tail}${mode === 'online' ? solHTML(p, i, st) : ''}${mode === 'online' && S.checked ? `<button class="rep-btn" type="button" data-rep="${i}">Даалгаварт алдаа байна уу?</button>` : ''}</li>`;
   };
   const nmc = items.filter(p => p.mc).length, nopen = items.length - nmc;
   const mcNote = mode === 'print' ? 'Зөв хариултын үсгийг дугуйлна.' : 'Зөв хариултыг сонгоно.';
@@ -186,14 +190,14 @@ function sheetHTML(items, opts){
   const instr = nmc && nopen ? mcNote + ' ' + (mode === 'online' ? 'Задгай даалгаврын хариуг бичээд «Шалгах» товчийг дарна.' : 'Задгай даалгаврын бодолтыг мөрөнд, хариуг зураасан дээр бичнэ.')
     : nmc ? mcNote + (mode === 'online' ? ' Дараа нь «Шалгах» товчийг дарна.' : '')
     : notes.map(n => Mx(esc(n))).join(' ') + (mode === 'online' ? ' Хариугаа бичээд «Шалгах» товчийг дарна.' : nmc ? '' : ' Бодолтоо мөрөнд, хариугаа зураасан дээр бичнэ.');
-  const label = code(seed);
+  const label = code(seed), qr = mode === 'print' ? printQR(seed) : '';
   return `<article class="paper">
-    <div class="p-head">
+    <div class="p-head${qr ? ' has-qr' : ''}">${qr}
       <div class="p-school">${esc(school || 'Математикийн ажлын хуудас')}</div>
       <div class="p-grade">${S.grade}-р анги${letter ? ' · Хувилбар ' + letter : ''}</div>
       <h2 class="p-topic">${Mx(esc(topicTitle()))}</h2>
       ${bookRef() ? `<div class="p-book">${esc(bookRef())}</div>` : ''}
-      <div class="p-meta">${LV[S.level]} түвшин · ${formLabel()} · ${items.length} даалгавар · Код ${label}</div>
+      <div class="p-meta">${S.level === 4 ? 'Нэгжийн шалгалт (гурван түвшин)' : LV[S.level] + ' түвшин'} · ${formLabel()} · ${items.length} даалгавар · Код ${label}</div>
       ${mode === 'print' ? `<div class="p-fields"><span>Нэр:<i></i></span><span>Бүлэг:<i></i></span><span>Огноо:<i></i></span><span>Оноо:<i></i>/${items.length}</span></div>` : ''}
     </div>
     <p class="p-instr"><b>Заавар.</b> ${instr}${nmc && nopen && notes.length ? '<br><b>Хариуны хэлбэр.</b> ' + notes.map(n => Mx(esc(n))).join(' ') : ''}</p>
@@ -201,14 +205,44 @@ function sheetHTML(items, opts){
     <div class="p-foot"><span>${esc(school)}</span><span>Код ${label}</span></div>
   </article>`;
 }
+/* Хэвлэсэн хуудасны QR: сурагч утсаараа уншуулаад яг энэ хувилбарын хариугаа оруулж шалгуулна */
+const printQRon = () => { const c = document.getElementById('withQR'); return !!(c && c.checked && window.qrcode && !S.student); };
+function printQR(seed){
+  if(!printQRon()) return '';
+  try { const t = Number(($('shareTime') || {}).value || 0), rv = $('shareReveal') && $('shareReveal').checked;
+    const url = location.href.split('#')[0] + '#' + (rv ? 'sr-' : 's-') + code(seed) + (t > 0 ? '~' + t : '') + linkTag();
+    const q = qrcode(0, 'M'); q.addData(url); q.make();
+    return `<div class="p-qr">${q.createImgTag(3, 0, 'QR')}<span>Хариугаа утсаар оруулж шалгуулах</span></div>`; } catch(e){ return ''; }
+}
 function keyHTML(items, letter, seed){
   return `<section class="paper key"><h3>Хариултын түлхүүр${letter ? ' · Хувилбар ' + letter : ''}</h3>
     <div class="p-meta">${S.grade}-р анги · ${Mx(esc(topicTitle()))} · ${LV[S.level]} · ${formLabel()} · Код ${code(seed)}</div>
     <ol class="key-list">${items.map((p, i) => `<li><span>${i + 1}.</span>${p.mc ? '<b style="font-family:var(--sans)">' + LETTER[p.ci] + '</b>&nbsp;<span class="ov">' + Mx(p.mc[p.ci]) + '</span>' : '<span class="ov">' + Mx(p.show) + '</span>'}</li>`).join('')}</ol></section>`;
 }
 
+/* Хуудас үүсгэх: нэгжийн шалгалт эсвэл энгийн хуудас */
+const genSheet = seed => S.level === 4 && S.unit && W.makeUnit ? W.makeUnit(S.grade, S.topic, S.unit, seed) : W.makeSheet(S.grade, S.topic, Math.min(3, S.level), total(), seed, formArg());
+/* Багшийн самбар: нэгжийн шалгалтын тохиргоо (түвшин бүрийн даалгаврын тоо) */
+function unitControls(){
+  const lv = $('levels'); if(!lv || !lv.parentNode) return;
+  let box = document.getElementById('unitBox');
+  if(!box){
+    box = document.createElement('div'); box.id = 'unitBox'; box.className = 'unit-box';
+    const sel = id => `<select id="${id}">${Array.from({length: 13}, (_, i) => `<option value="${i}">${i}</option>`).join('')}</select>`;
+    box.innerHTML = `<div class="unit-h"><b>Нэгжийн шалгалт</b><span class="small">Гурван түвшнийг нэг хуудсанд. Сэдвээс нэгжийн «Энэ агуулгын холимог»-ийг сонговол нэгжийн бүх сэдвээс орно.</span></div>
+      <div class="unit-row"><label class="f">Мэдлэг (сонгох)${sel('u1')}</label><label class="f">Чадвар (задгай)${sel('u2')}</label><label class="f">Хэрэглээ (задгай)${sel('u3')}</label></div>
+      <button class="btn ghost wide" type="button" id="unitBtn"></button>`;
+    lv.insertAdjacentElement('afterend', box);
+    box.addEventListener('change', e => { if(!/^u[123]$/.test(e.target.id)) return; const u = [1, 2, 3].map(i => Number($('u' + i).value)); if(u[0] + u[1] + u[2] < 1) return; S.unit = u; if(S.level === 4) build(); });
+    $('unitBtn').addEventListener('click', () => { if(S.level === 4){ S.level = S.prevLevel || 1; } else { S.prevLevel = S.level; S.level = 4; S.unit = [1, 2, 3].map(i => Number($('u' + i).value)); if(S.unit[0] + S.unit[1] + S.unit[2] < 1) S.unit = [4, 4, 2]; } build(); });
+  }
+  const u = S.unit || [4, 4, 2]; [1, 2, 3].forEach(i => { $('u' + i).value = String(u[i - 1]); });
+  box.classList.toggle('on', S.level === 4);
+  $('unitBtn').textContent = S.level === 4 ? 'Энгийн ажлын хуудас руу буцах' : 'Нэгжийн шалгалт үүсгэх';
+}
 function build(){
-  S.items = W.makeSheet(S.grade, S.topic, S.level, total(), S.seed, formArg());
+  if(S.level === 4 && !S.unit) S.unit = [4, 4, 2];
+  S.items = genSheet(S.seed);
   S.answers = {}; S.choice = {}; S.checked = false; S.reveal = false; S.results = []; S.solOpen = {}; S.hints = {};
   render();
 }
@@ -232,14 +266,14 @@ function render(){
     const miss = S.results.map((x, i) => x === true ? null : i + 1).filter(Boolean);
     sc.hidden = false;
     sc.innerHTML = `<div class="result-card">
-      <div><b>${ok} / ${n}</b> <span class="small">зөв · ${pct}%</span></div>
-      <div class="who">${esc(stWho())} · Код ${code()} · ${esc(S.doneAt || '')}</div>
+      <div class="rc-score"><b>${ok} / ${n}</b> <span class="small">зөв · ${pct}%</span></div>
       ${S.timedOut ? '<div class="status err">Хугацаа дууссан тул хариуг автоматаар шалгаж илгээлээ.</div>' : ''}
+      ${window.MOTIV ? MOTIV.resultHTML(pct) : ''}
+      ${S.daily ? '<p class="small">Маргааш шинэ бодлого гарна. Энэ холбоосоороо дахин ороорой.</p>' : S.level === 4 ? unitResultHTML() : pathHTML(pct)}
       ${miss.length ? `<div class="small">Алдсан эсвэл хоосон: ${miss.join(', ')}-р даалгавар. Тэдгээрийн доор «${S.allowReveal ? 'Бодолтыг харах' : 'Бодох арга'}» гэсэн тайлбар бий.</div>` : '<div class="small">Бүх даалгавар зөв. Баяр хүргэе!</div>'}
+      <div class="who">${esc(stWho())} · Код ${code()} · ${esc(S.doneAt || '')}</div>
       ${resultsURL() ? '' : '<div class="small">Үр дүнгээ «Мессежээр илгээх» товчоор багшдаа илгээнэ үү, эсвэл энэ дэлгэцийн зургийг авна уу.</div>'}
       ${window.sendStateHTML ? sendStateHTML() : ''}
-      ${window.MOTIV ? MOTIV.resultHTML(pct) : ''}
-      ${S.daily ? '<p class="small">Маргааш шинэ бодлого гарна. Энэ холбоосоороо дахин ороорой.</p>' : pathHTML(pct)}
       <div class="result-actions"><button class="btn ghost" id="sendResult" type="button">Мессежээр илгээх</button>${S.allowReveal ? `<button class="btn ghost" id="revealBtn" type="button">${S.reveal ? 'Зөв хариуг нуух' : 'Зөв хариуг харах'}</button>` : ''}</div>
       <div class="status" id="sendStatus" hidden></div></div>`;
   } else if(S.mode === 'online' && S.checked){
@@ -249,6 +283,7 @@ function render(){
       <div class="small" style="flex:1 1 220px">${pct >= 80 ? 'Сайн эзэмшжээ. Дараагийн түвшинг туршаарай.' : pct >= 50 ? 'Алдсан даалгавраа дахин бодоод шалгаарай.' : 'Энэ сэдвийг давтах хэрэгтэй. Зөв хариуг хараад дахин оролдоорой.'}</div>
       <button class="btn ghost" id="revealBtn" type="button">${S.reveal ? 'Зөв хариуг нуух' : 'Зөв хариуг харах'}</button>`;
   } else sc.hidden = true;
+  placeStudentResult();
   if(focus && $(focus) && focus.startsWith('a')) $(focus).focus();
   save();
 }
@@ -259,13 +294,34 @@ function needName(){
   el.setCustomValidity(el === sel ? 'Нэрээ жагсаалтаас сонгоно уу' : 'Нэрээ бичнэ үү'); el.reportValidity(); el.focus();
   el.addEventListener(el === sel ? 'change' : 'input', () => el.setCustomValidity(''), {once: true});
 }
+/* Сурагчийн горим: дүн ба «Дараагийн түвшин / Дахин хийх» нь ажлын хуудасны доор, дуусгасан даруйд гарна.
+   Хуудасны төгсгөлд мөн «Шалгах» товч байна (дээш буцаж гүйлгэх шаардлагагүй). */
+function placeStudentResult(){
+  const sheet = $('sheet'), sc = $('score'); if(!sheet || !sc || !sheet.parentNode) return;
+  let bottom = document.getElementById('checkBottom');
+  if(!S.student){ if(bottom) bottom.hidden = true; return; }
+  if(!bottom){
+    bottom = document.createElement('div'); bottom.id = 'checkBottom'; bottom.className = 'check-bottom';
+    bottom.innerHTML = '<p class="small">Бүх даалгавраа хийж дууссан бол шалгуулна уу.</p><button class="btn" type="button" id="checkBtn2">Шалгах</button>';
+    bottom.querySelector('#checkBtn2').addEventListener('click', () => check());
+  }
+  if(sheet.nextElementSibling !== bottom) sheet.after(bottom);
+  if(bottom.nextElementSibling !== sc) bottom.after(sc);
+  bottom.hidden = S.checked || S.mode !== 'online' || document.body.classList.contains('pre-start');
+}
+function showResultBelow(){
+  const sc = $('score'); if(!sc || sc.hidden) return;
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  setTimeout(() => { sc.scrollIntoView({behavior: reduce ? 'auto' : 'smooth', block: 'start'}); const b = sc.querySelector('a[data-go]') || sc.querySelector('.btn'); if(b) b.focus({preventScroll: true}); }, 80);
+}
 function check(force){
   if(S.student && !force && !$('stName').value.trim()){ needName(); return; }
   if(S.student){ const d = new Date(), z = n => String(n).padStart(2, '0'); S.doneAt = `${d.getFullYear()}.${z(d.getMonth() + 1)}.${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`; }
   S.results = S.items.map((p, i) => p.mc ? (S.choice[i] == null ? null : S.choice[i] === p.ci) : W.check(p, S.answers[i]));
   S.checked = true; stopTimer(); render();
-  if(S.student){ saveRun({done: true, doneAt: S.doneAt, timedOut: !!S.timedOut}); const prev = loadPath()[S.level]; savePath(); if(window.MOTIV) MOTIV.onCheck(prev); render(); }
+  if(S.student){ saveRun({done: true, doneAt: S.doneAt, timedOut: !!S.timedOut}); const prev = S.level === 4 ? null : loadPath()[S.level]; savePath(); if(window.MOTIV) MOTIV.onCheck(prev); render(); }
   if(S.student && window.submitResult) submitResult();
+  if(S.student) showResultBelow();
 }
 
 // html2canvas KaTeX-ийн язгуур/сумны SVG-г (width="400em", slice) зөв зурахгүй тул бодит пикселийн хэмжээг онооно.
@@ -285,7 +341,7 @@ async function exportPDF(){
   if(!window.html2pdf){ say('PDF бэлтгэх хэрэгсэл ачаалагдаагүй байна. Хуудсыг дахин ачаалаад оролдоно уу.', 'err'); return; }
   btn.disabled = true; say('PDF бэлтгэж байна…');
   const nv = Number($('variants').value), withKey = $('withKey').checked, box = $('exportBox');
-  const sets = Array.from({length: nv}, (_, v) => ({ seed: S.seed + v, letter: nv > 1 ? LETTER[v] : '', items: v === 0 ? S.items : W.makeSheet(S.grade, S.topic, S.level, total(), S.seed + v, formArg()) }));
+  const sets = Array.from({length: nv}, (_, v) => ({ seed: S.seed + v, letter: nv > 1 ? LETTER[v] : '', items: v === 0 ? S.items : genSheet(S.seed + v) }));
   const brk = '<div class="html2pdf__page-break"></div>';
   let html = sets.map(x => sheetHTML(x.items, {mode: 'print', letter: x.letter, seed: x.seed})).join(brk);
   if(withKey) html += brk + sets.map(x => keyHTML(x.items, x.letter, x.seed)).join('<div style="height:24px"></div>');
@@ -329,6 +385,7 @@ on('newVar', 'click', () => { S.seed = 1000 + Math.floor(Math.random() * 9000); 
 on('tabOnline', 'click', () => { S.mode = 'online'; render(); });
 on('tabPrint', 'click', () => { S.mode = 'print'; render(); });
 on('withKey', 'change', render);
+{ const wq = document.getElementById('withQR'); if(wq){ try { wq.checked = localStorage.getItem('ws_pqr') !== '0'; } catch(e){} wq.addEventListener('change', () => { try { localStorage.setItem('ws_pqr', wq.checked ? '1' : '0'); } catch(e){} render(); }); } }
 on('school', 'input', () => { clearTimeout(render.t); render.t = setTimeout(render, 300); });
 on('checkBtn', 'click', () => check());
 on('clearBtn', 'click', () => { S.answers = {}; S.choice = {}; S.checked = false; S.reveal = false; S.solOpen = {}; S.hints = {}; render(); });
@@ -352,8 +409,8 @@ on('copyLink', 'click', async () => {
   shareSay('shareStatus', ok ? 'Холбоос хуулагдлаа. Чат эсвэл Classroom-д буулгаж илгээнэ үү.' : 'Хуулж чадсангүй. Дээрх холбоосыг гараар сонгож хуулна уу.', ok ? 'ok' : 'err');
 });
 on('shareLink', 'focus', e => e.target.select());
-on('shareReveal', 'change', updateShare);
-on('shareTime', 'change', updateShare);
+on('shareReveal', 'change', () => { updateShare(); if(S.mode === 'print') render(); });
+on('shareTime', 'change', () => { updateShare(); if(S.mode === 'print') render(); });
 on('qrBig', 'click', () => {
   if(!window.qrcode) return; const q = qrcode(0, 'M'); q.addData(shareURL()); q.make();
   $('qrBigBox').innerHTML = q.createSvgTag({cellSize: 8, margin: 2, scalable: true});
@@ -409,7 +466,21 @@ function savePath(){
   if(!S.student || !S.items.length) return;
   const pct = Math.round(S.results.filter(x => x === true).length / S.items.length * 100);
   try { const all = JSON.parse(localStorage.getItem('ws_path') || '{}') || {}, k = pathKey(), cur = all[k] || {};
-    if(!(cur[S.level] >= pct)) cur[S.level] = pct; all[k] = cur; localStorage.setItem('ws_path', JSON.stringify(all)); } catch(e){}
+    if(S.level === 4) unitStats().forEach(u => { if(u.n && !(cur[u.l] >= u.pct)) cur[u.l] = u.pct; });   // нэгжийн шалгалт: түвшин бүрийг тусад нь
+    else if(!(cur[S.level] >= pct)) cur[S.level] = pct;
+    all[k] = cur; localStorage.setItem('ws_path', JSON.stringify(all)); } catch(e){}
+}
+/* Нэгжийн шалгалтын түвшин бүрийн дүн */
+function unitStats(){
+  return [1, 2, 3].map(l => { const idx = S.items.map((p, i) => p.lvl === l ? i : -1).filter(i => i >= 0), ok = idx.filter(i => S.results[i] === true).length;
+    return {l, n: idx.length, ok, pct: idx.length ? Math.round(ok / idx.length * 100) : null}; });
+}
+function unitResultHTML(){
+  const st = unitStats().filter(u => u.n), weak = st.filter(u => u.pct < PASS).sort((a, b) => a.l - b.l)[0];
+  const link = l => `${location.pathname}${location.search}#${S.allowReveal ? 'sr' : 's'}-${S.grade}-${S.topic}-${l}-3+3-${1000 + Math.floor(Math.random() * 98000)}${linkTag()}`;
+  const rows = st.map(u => `<li class="${u.pct >= PASS ? 'ok' : u.pct >= 50 ? 'mid' : 'low'}"><span>${LV[u.l]}</span><b>${u.ok} / ${u.n}</b><em>${u.pct}%</em></li>`).join('');
+  const msg = weak ? `«${LV[weak.l]}» түвшинд ${PASS}%-д хүрээгүй байна. Энэ түвшнийг давтаж бататгаарай.` : 'Гурван түвшинд бүгдэд нь 80%-иас дээш авлаа. Энэ нэгжийг сайн эзэмшжээ!';
+  return `<div class="path"><ul class="unit-res">${rows}</ul><p class="small">${msg}</p>${weak ? `<div class="result-actions"><a class="btn" href="${link(weak.l)}" data-go>«${LV[weak.l]}» түвшинг давтах</a></div>` : ''}</div>`;
 }
 function nextURL(level){
   const nmc = S.items.filter(p => p.mc).length, nop = S.items.length - nmc;

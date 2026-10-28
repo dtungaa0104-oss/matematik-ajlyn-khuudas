@@ -7,7 +7,7 @@
   const ymd = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   const rj = k => { try { return JSON.parse(localStorage.getItem(k) || '{}') || {}; } catch(e){ return {}; } };
   const wj = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} };
-  function prof(){ const p = rj('ws_prof')[who()] || {}; return {days: p.days || [], hist: p.hist || [], daily: p.daily || {}, badges: p.badges || {}}; }
+  function prof(){ const p = rj('ws_prof')[who()] || {}; return {days: p.days || [], hist: p.hist || [], daily: p.daily || {}, badges: p.badges || {}, rv: p.rv || 0, drill: p.drill || 0}; }
   function saveProf(p){ const all = rj('ws_prof'); all[who()] = p; wj('ws_prof', all); }
   /* Од: түвшин бүрт 80%-иас дээш авсан бол нэг од. {"9-5": {1: 85, 2: 60}} */
   function starMap(){
@@ -51,11 +51,54 @@
     ['streak7', '📅', '7 хоног дараалан', '7 өдөр дараалан ажилласан', c => streak(c.p.days) >= 7],
     ['daily5', '☀️', 'Өдрийн баатар', 'Өдрийн бодлогыг 5 удаа зөв бодсон', c => Object.values(c.p.daily).filter(v => v >= 100).length >= 5],
     ['traveler', '🐎', 'Аялагч', 'Монгол аяллын 5 дахь буудал болох Хөвсгөл нууранд хүрсэн', c => station(c.stars) >= 4],
+    ['speed', '⚡', 'Хурдан бодогч', 'Хурдан тооцоонд 60 секундэд 20 жишээ зөв бодсон', c => c.p.drill >= 20],
+    ['review', '📒', 'Давтлагын баатар', 'Алдааны дэвтрээс 3 сэдвийг давтлагаар бататгаж хассан', c => c.p.rv >= 3],
     ['master', '🏆', 'Мастер', '30 од цуглуулсан', c => c.stars >= 30]
   ];
   const ctx = () => { const p = prof(), sm = starMap(); return {p, sm, stars: totalStars(sm)}; };
   const earnedIds = c => BADGES.filter(b => c.p.badges[b[0]] || b[4](c)).map(b => b[0]);
 
+  /* ---------- Алдааны дэвтэр (давтлага) ----------
+     80%-д хүрээгүй сэдэв-түвшин дэвтэрт орно. 2 хоногийн дараа давтана; давбал 7 хоногийн дараа дахин,
+     хоёр дахь давтлагаа давбал дэвтрээс хасагдана. Хугацаа болоогүй үед сайн бодсон ч хугацаа хэвээр. */
+  const SPAN = [2, 7];
+  const addDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return ymd(d); };
+  const dmy = d => d.slice(5, 7).replace(/^0/, '') + '-р сарын ' + d.slice(8).replace(/^0/, '');
+  const revLoad = () => rj('ws_rev')[who()] || {};
+  function revSave(r){ const all = rj('ws_rev'); all[who()] = r; wj('ws_rev', all); }
+  const revDue = (r = revLoad(), today = ymd()) => Object.keys(r).filter(k => r[k].d <= today);
+  function revTitle(k){ const [g, t, l] = k.split('-').map(Number), tp = W.topicsOf(g) && W.topicsOf(g)[t - 1]; return {g, t, l, title: tp ? tp.title : g + '-р анги, сэдэв ' + t}; }
+  function revURL(k){ const {g, t, l} = revTitle(k), seed = 1000 + Math.floor(Math.random() * 98000);
+    return `${location.pathname}${location.search}#${S.allowReveal ? 'sr' : 's'}-${g}-${t}-${l}-${l === 1 ? '5+0' : '0+5'}-${seed}${typeof linkTag === 'function' ? linkTag() : ''}`; }
+  function revUpdate(p){
+    const out = {added: [], again: [], cleared: []};
+    if(S.daily || !S.items.length) return out;
+    const r = revLoad(), today = ymd(), g = S.grade, tps = W.topicsOf(g), grp = {};
+    S.items.forEach((it, i) => { const t = S.topic > 0 && S.topic < 100 ? S.topic : tps.findIndex(x => x.id === it.tid) + 1; if(t < 1) return;
+      const k = g + '-' + t + '-' + (it.lvl || S.level), o = grp[k] = grp[k] || {n: 0, ok: 0}; o.n++; if(S.results[i] === true) o.ok++; });
+    Object.keys(grp).forEach(k => { const o = grp[k], e = r[k];
+      if(o.ok / o.n * 100 < PASS){ if(!e) out.added.push(k); r[k] = {s: 0, d: addDays(SPAN[0]), m: (e ? e.m : 0) + o.n - o.ok, a: e ? e.a : today}; }
+      else if(e && e.d <= today){ if(e.s >= 1){ delete r[k]; out.cleared.push(k); p.rv = (p.rv || 0) + 1; } else { r[k] = Object.assign(e, {s: 1, d: addDays(SPAN[1])}); out.again.push(k); } } });
+    revSave(r); return out;
+  }
+  function revNote(v){
+    if(!v) return '';
+    const t = k => '«' + Mx(esc(revTitle(k).title)) + '»';
+    const out = [];
+    if(v.cleared.length) out.push(`${v.cleared.map(t).join(', ')} сэдвийг давтлагаар бататгаж, алдааны дэвтрээсээ хаслаа!`);
+    if(v.again.length) out.push(`Давтлага амжилттай. ${v.again.map(t).join(', ')} сэдвийг 7 хоногийн дараа нэг удаа дахин давтана.`);
+    if(v.added.length) out.push(`${v.added.length} сэдэв алдааны дэвтэрт нэмэгдлээ. ${dmy(addDays(SPAN[0]))}-нд «Миний ахиц» дотроос давтаарай.`);
+    return out.length ? `<p class="mv-rev"><span aria-hidden="true">📒</span> ${out.join(' ')}</p>` : '';
+  }
+  function revSection(){
+    const r = revLoad(), today = ymd(), keys = Object.keys(r).sort((a, b) => r[a].d < r[b].d ? -1 : r[a].d > r[b].d ? 1 : 0);
+    if(!keys.length) return `<h3 id="revSec">Алдааны дэвтэр</h3><p class="small">Одоогоор давтах сэдэв алга. 80%-д хүрээгүй сэдэв энд автоматаар орж, 2 ба 7 хоногийн дараа давтахыг сануулна.</p>`;
+    const rows = keys.map(k => { const e = r[k], x = revTitle(k), due = e.d <= today;
+      return `<li class="${due ? 'due' : ''}"><span class="rv-t">${Mx(esc(x.title))}<small>${x.g}-р анги · ${LV[x.l]} · ${e.s ? '2 дахь давтлага' : '1 дэх давтлага'}</small></span><span class="rv-d">${due ? 'Өнөөдөр' : dmy(e.d)}</span><a class="btn${due ? '' : ' ghost'}" href="${revURL(k)}" data-go>Давтах</a></li>`; }).join('');
+    const n = revDue(r, today).length;
+    return `<h3 id="revSec">Алдааны дэвтэр</h3><p class="small">${n ? `Өнөөдөр давтах ${n} сэдэв байна.` : 'Өнөөдөр давтах сэдэв алга. Товлосон өдрөө давтаарай.'} Давтлагаа 80%-иас дээш дүнтэй хоёр удаа давбал сэдэв дэвтрээс хасагдана.</p><ul class="revlist">${rows}</ul>`;
+  }
+  
   /* ---------- Шалгасны дараа ---------- */
   window.MOTIV = {};
   MOTIV.onCheck = function(prev){
@@ -64,13 +107,14 @@
     if(!p.days.includes(today)) p.days = [...p.days, today].slice(-120);
     p.hist = [...p.hist, {c: code(), p: pct, t: Date.now()}].slice(-300);
     if(S.daily) p.daily[today] = Math.max(p.daily[today] || 0, pct);
+    const rev = revUpdate(p);
     const c = {p, sm: starMap()}; c.stars = totalStars(c.sm);
-    const starUp = pct >= PASS && !(prev >= PASS);
+    const starUp = S.level !== 4 && pct >= PASS && !(prev >= PASS);
     const before = station(c.stars - (starUp ? 1 : 0)), after = station(c.stars);
     const fresh = BADGES.filter(b => !p.badges[b[0]] && b[4](c));
     fresh.forEach(b => { p.badges[b[0]] = today; });
     saveProf(p);
-    S.motiv = {pct, prev, starUp, stationUp: after > before ? after : -1, fresh: fresh.map(b => b[0])};
+    S.motiv = {pct, prev, rev, starUp, stationUp: after > before ? after : -1, fresh: fresh.map(b => b[0])};
     if(pct >= PASS) setTimeout(() => chalkBurst(pct === 100 ? 140 : 90), 60);
   };
   MOTIV.resultHTML = function(pct){
@@ -88,10 +132,12 @@
     if(m.starUp) parts.push(`<p class="mv-star"><span aria-hidden="true">★</span> Шинэ од: ${tp ? '«' + Mx(esc(tp.title)) + '» · ' : ''}${LV[S.level]}</p>`);
     if(m.stationUp >= 0) parts.push(`<p class="mv-trip">Монгол аялал: та <b>${TRIP[m.stationUp][3]}</b> хүрлээ. ${TRIP[m.stationUp][2]}</p>`);
     if(m.fresh && m.fresh.length) parts.push(`<div class="mv-badges">${m.fresh.map(id => { const b = BADGES.find(x => x[0] === id); return `<span class="badge on"><i aria-hidden="true">${b[1]}</i>Шинэ тэмдэг: ${b[2]}</span>`; }).join('')}</div>`);
+    parts.push(revNote(m.rev));
     parts.push(`<div class="result-actions"><button class="btn ghost" type="button" data-myprog>Миний ахиц</button></div>`);
     return `<div class="motiv${pct >= PASS ? ' win' : ''}" role="status">${parts.join('')}</div>`;
   };
-  MOTIV.barHTML = () => { const n = totalStars(starMap()); return `<button class="linkbtn myprog" type="button" data-myprog><span aria-hidden="true">★</span> ${n} од · Миний ахиц</button>`; };
+  MOTIV.barHTML = () => { const n = totalStars(starMap()), d = revDue().length;
+    return `<button class="linkbtn myprog" type="button" data-myprog><span aria-hidden="true">★</span> ${n} од · Миний ахиц</button>${d ? ` <button class="linkbtn revdue" type="button" data-myprog="rev"><span aria-hidden="true">📒</span> Өнөөдөр давтах: ${d}</button>` : ''}`; };
 
   /* ---------- Шохойн тоос (баяр) ---------- */
   function chalkBurst(count){
@@ -135,13 +181,15 @@
     return `<div class="pg-head"><div><h2 id="progTitle">Миний ахиц</h2><p class="small">${name ? esc(name) + ' · ' : ''}${g}-р анги</p></div><button class="btn ghost" type="button" data-close>Хаах</button></div>
       ${name ? '' : '<p class="status">Нэрээ бичвэл ахиц тань тусдаа хадгалагдана.</p>'}
       <div class="pg-sum"><div><b>★ ${c.stars}</b><span>цуглуулсан од</span></div><div><b>${streak(c.p.days)}</b><span>хамгийн урт дараалсан өдөр</span></div><div><b>${earned.length} / ${BADGES.length}</b><span>тэмдэг</span></div><div><b>${c.p.hist.length}</b><span>шалгуулсан ажил</span></div></div>
+      ${revSection()}
+      <div class="pg-drill"><div><h3>Хурдан тооцоо</h3><p class="small">60 секундэд аль болох олон жишээ цээжээр бод.${c.p.drill ? ` Таны дээд амжилт: <b>${c.p.drill}</b>.` : ''}</p></div><button class="btn" type="button" data-drill="${g}">⚡ Эхлэх</button></div>
       <h3>Монгол аялал</h3>${trip}
       <h3>${g}-р ангийн оддын зураг</h3><p class="small">Сэдэв бүрт гурван од бий: мэдлэг, ойлголт, чадвар, хэрэглээ. Түвшинг 80%-иас дээш дүнтэй давахад од асна. Гурван од авсан сэдвээр дурсамж татаж болно.</p>${map}
       <h3>Тэмдэг</h3>${badges}`;
   }
   function openProg(){ const d = dlg(); d.innerHTML = progHTML(); if(d.showModal) d.showModal(); else d.setAttribute('open', ''); }
   document.addEventListener('click', e => {
-    if(e.target.closest('[data-myprog]')){ openProg(); return; }
+    const mp = e.target.closest('[data-myprog]'); if(mp){ openProg(); if(mp.dataset.myprog === 'rev'){ const h = document.getElementById('revSec'); if(h) h.scrollIntoView({block: 'start'}); } return; }
     const cb = e.target.closest('[data-cert]'); if(cb){ cert(cb, ...cb.dataset.cert.split('-').map(Number)); }
   });
 
@@ -180,8 +228,14 @@
   if(sp && !S.student){
     const box = document.createElement('div'); box.className = 'daily-box';
     box.innerHTML = `<h3>Өдрийн бодлого</h3><p class="small" style="margin:0">Сонгосон ангийн нэг сонирхолтой бодлого. Өдөр бүр автоматаар солигдоно. Хичээлийн эхний 5 минутын дасгалд тохиромжтой. Холбоос нь нэг л удаа өгөхөд хангалттай.</p>
-      <button class="btn ghost wide" id="dailyCopy" type="button">Өдрийн бодлогын холбоос хуулах</button><div class="status" id="dailyStatus" hidden></div>`;
+      <button class="btn ghost wide" id="dailyCopy" type="button">Өдрийн бодлогын холбоос хуулах</button><div class="status" id="dailyStatus" hidden></div>
+      <h3>Хурдан тооцоо</h3><p class="small" style="margin:0">60 секундийн цээжээр бодох дасгал. Хичээлийн эхэнд халаалт болгон, эсвэл самбарт гаргаж ангиараа өрсөлдөж болно.</p>
+      <div class="row"><button class="btn ghost" id="drillCopy" type="button">Холбоос хуулах</button><button class="btn ghost" type="button" data-drill="">Энд туршиж үзэх</button></div><div class="status" id="drillStatus" hidden></div>`;
     sp.appendChild(box);
+    document.getElementById('drillCopy').addEventListener('click', async () => {
+      const url = location.href.split('#')[0] + '#q-' + S.grade, ok = await copyText(url);
+      shareSay('drillStatus', ok ? `${S.grade}-р ангийн хурдан тооцооны холбоос хуулагдлаа: ${url}` : 'Хуулж чадсангүй: ' + url, ok ? 'ok' : 'err');
+    });
     document.getElementById('dailyCopy').addEventListener('click', async () => {
       const url = location.href.split('#')[0] + '#d-' + S.grade + linkTag(), ok = await copyText(url);
       shareSay('dailyStatus', ok ? `${S.grade}-р ангийн өдрийн бодлогын холбоос хуулагдлаа: ${url}` : 'Хуулж чадсангүй: ' + url, ok ? 'ok' : 'err');

@@ -15,7 +15,7 @@ const TEACHER_KEY = 'ЭНИЙГ-СОЛИНО-УУ';   // Багшийн нууц
 const SHEET_NAME = 'Дүн';
 const HEAD = ['Илгээсэн огноо', 'Код', 'Анги', 'Сэдэв', 'Түвшин', 'Хэлбэр', 'Нэр', 'Бүлэг',
   'Оноо', 'Нийт', 'Хувь (%)', 'Хугацаа (мин)', 'Алдсан даалгавар', 'Даалгавар бүрийн дүн', 'Сурагчийн хариу', 'Оролдлого'];
-const CODE_RE = /^\d{1,2}-\d{1,3}-[123]-(\d{1,2}-[012]|\d{1,2}\+\d{1,2})-\d{1,6}$/;  // хуучин: 9-5-2-10-2-2024, шинэ: 9-5-2-10+5-2024
+const CODE_RE = /^\d{1,2}-\d{1,3}-[1234]-(\d{1,2}-[012]|\d{1,2}\+\d{1,2}|\d{1,2}\.\d{1,2}\.\d{1,2})-\d{1,6}$/;  // + нэгжийн шалгалт: 9-104-4-4.4.2-2024  // хуучин: 9-5-2-10-2-2024, шинэ: 9-5-2-10+5-2024
 
 /** Хүснэгтийг олох: Sheets-ээс нээсэн бол тэр хүснэгт, script.google.com-оос шууд үүсгэсэн бол шинэ хүснэгтийг автоматаар үүсгэнэ */
 function ss_() {
@@ -75,6 +75,7 @@ function doPost(e) {
       if (!names.length) pr.deleteProperty(k); else pr.setProperty(k, JSON.stringify({ label: clean_(d.group, 20), names: names }));
       return out_({ ok: true, rosters: listRosters_() });
     }
+    if (d.action === 'report') return out_(report_(d));     // сурагч, багш: даалгаврын алдаа, санал хүсэлт
     const code = String(d.code || '');
     if (!CODE_RE.test(code)) return out_({ ok: false, error: 'code' });
     const name = clean_(d.name, 60), group = clean_(d.group, 20);
@@ -101,6 +102,32 @@ function doPost(e) {
   } finally {
     try { lock.releaseLock(); } catch (e2) {}
   }
+}
+
+/** Санал хүсэлт, даалгаврын алдааны мэдээлэл: «Санал» хуудсанд нэмнэ */
+const REP_SHEET = 'Санал';
+const REP_HEAD = ['Огноо', 'Төрөл', 'Код', 'Даалгавар №', 'Даалгавар', 'Өгсөн хариу', 'Сайтын хариу', 'Тайлбар', 'Нэр', 'Бүлэг'];
+const REP_KIND = { item: 'Даалгаврын алдаа', idea: 'Санал', bug: 'Сайтын алдаа' };
+function repSheet_() {
+  const ss = ss_(); let sh = ss.getSheetByName(REP_SHEET);
+  if (!sh) { sh = ss.insertSheet(REP_SHEET); sh.appendRow(REP_HEAD); sh.setFrozenRows(1); sh.getRange(1, 1, 1, REP_HEAD.length).setFontWeight('bold').setBackground('#FCEFD2'); sh.setColumnWidth(5, 320); sh.setColumnWidth(8, 320); }
+  return sh;
+}
+function report_(d) {
+  const note = clean_(d.note, 1000), code = String(d.code || '');
+  if (!note && d.kind !== 'item') return { ok: false, error: 'note' };
+  if (code && !CODE_RE.test(code)) return { ok: false, error: 'code' };
+  const sh = repSheet_();
+  if (sh.getLastRow() > 5000) return { ok: false, error: 'full' };
+  sh.appendRow([new Date(), REP_KIND[d.kind] || REP_KIND.idea, code ? "'" + code : '', parseInt(d.n, 10) || '', clean_(d.q, 500), clean_(d.ans, 200), clean_(d.right, 200), note, clean_(d.name, 60), clean_(d.group, 20)]);
+  return { ok: true };
+}
+function listReports_() {
+  const sh = ss_().getSheetByName(REP_SHEET); if (!sh || sh.getLastRow() < 2) return [];
+  const tz = Session.getScriptTimeZone(), last = sh.getLastRow(), from = Math.max(2, last - 99);
+  return sh.getRange(from, 1, last - from + 1, REP_HEAD.length).getValues().reverse().map(r => ({
+    time: r[0] instanceof Date ? Utilities.formatDate(r[0], tz, 'yyyy.MM.dd HH:mm') : String(r[0]), kind: String(r[1]), code: String(r[2]), n: r[3],
+    q: String(r[4]), ans: String(r[5]), right: String(r[6]), note: String(r[7]), name: String(r[8]), group: String(r[9]) }));
 }
 
 /** Хуудасны дүнгийн мөрүүдийг сайтад өгөх хэлбэрт оруулна */
@@ -156,7 +183,7 @@ function listGoals_() { const G = goals_(); return Object.keys(G).map(k => ({ ke
 /** Багшийн «Дүн» хэсэгт өгөгдөл өгөх (нууц үгтэй) */
 function doGet(e) {
   const p = e.parameter || {};
-  if (p.action === 'ping') return out_({ ok: true, app: 'ajlyn-khuudas', v: 6 });
+  if (p.action === 'ping') return out_({ ok: true, app: 'ajlyn-khuudas', v: 8 });
   // Ангийн хамтын зорилго: сурагчид зөвхөн бүлгийнхээ нийт тоог харна (нэр харагдахгүй)
   // Ангийн нэрсийн жагсаалт: сурагч нэрээ жагсаалтаас сонгоно
   if (p.action === 'roster') { const r = getRoster_(p.group || ''); return out_({ ok: true, label: r ? r.label : '', names: r ? r.names : null }); }
@@ -172,6 +199,7 @@ function doGet(e) {
   if (p.action === 'archives') return out_({ ok: true, archives: listArchives_() });
   if (p.action === 'archived') { const ash = ss_().getSheetByName(ARCH_PREFIX + (p.name || '')); return ash ? out_({ ok: true, rows: rowsOf_(ash) }) : out_({ ok: false, error: 'name' }); }
   if (p.action === 'goals') return out_({ ok: true, goals: listGoals_() });
+  if (p.action === 'reports') return out_({ ok: true, reports: listReports_() });
   if (p.action === 'rosters') return out_({ ok: true, rosters: listRosters_() });
   if (p.action === 'setgoal') {
     const G = goals_(), key = norm_(p.group || '');

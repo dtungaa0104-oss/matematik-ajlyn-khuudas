@@ -104,6 +104,7 @@
       <label class="f" for="variants">Хувилбарын тоо
         <select id="variants"><option value="1">1 (бүгдэд ижил)</option><option value="2">2 (А, Б)</option><option value="3">3 (А, Б, В)</option><option value="4">4 (А, Б, В, Г)</option></select></label>
       <label class="check"><input type="checkbox" id="withKey" checked> Хариултын түлхүүр хавсаргах</label>
+      <label class="check"><input type="checkbox" id="withQR" checked> Хуудас бүрт QR код (сурагч утсаараа уншуулж хариугаа оруулна)</label>
       <button class="btn wide" id="pdfBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>PDF татаж хэвлэх</button>
       <div class="status" id="pdfStatus" hidden></div>
     </section>
@@ -136,6 +137,7 @@
     <div id="sheet"></div>
   </main>
 </div>
+<footer class="site-foot" id="siteFoot"><button class="linkbtn" type="button" id="guideBtn">Багшийн заавар</button><button class="linkbtn" type="button" id="fbBtn">Санал хүсэлт</button></footer>
 <div class="timer" id="timer" role="timer" aria-live="off" hidden></div>
 <dialog class="qrdlg" id="qrDlg" aria-label="QR код">
   <div class="qrbig" id="qrBigBox"></div>
@@ -157,6 +159,7 @@
 <script src="js/board.js"></script>
 <script src="js/motivate.js"></script>
 <script src="js/extras.js"></script>
+<script src="js/drill.js"></script>
 <script src="js/results.js"></script>
 </body>
 </html>
