@@ -159,11 +159,24 @@ function satHelp(p, mode){
   if(mode === 'print') return `<div class="sat-help print"><span class="sat-gl">${gl}</span></div>`;
   return `<details class="sat-help" open><summary>Монгол тусламж</summary><p class="sat-mn">${Mx(esc(p.mn || ''))}</p><p class="sat-gl">${gl}</p></details>`;
 }
+/* Сурагч бүрт дараалал холих (#s-КОД!): даалгавар ба сонголтын дараалал энэ төхөөрөмжид тогтвортой.
+   Хариу, дүн, багшид очих мэдээлэл анхны дарааллаараа хадгалагдана (зөвхөн харагдац өөрчлөгдөнө). */
+function mixOrder(){
+  if(!(S.student && S.mix && S.items.length && W.H && W.H.mulberry32)) return null;
+  const key = code() + '|' + S.items.length; if(S._mix && S._mix.key === key) return S._mix;
+  let dev = ''; try { dev = localStorage.getItem('ws_mixdev') || ''; if(!dev){ dev = String(Math.floor(Math.random() * 1e9)); localStorage.setItem('ws_mixdev', dev); } } catch(e){ dev = String(S.startedAt || 7); }
+  let h = 2166136261; for(const ch of dev + '|' + code()) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  const rng = W.H.mulberry32(h >>> 0), sh = a => { for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const idx = S.items.map((p, i) => i), order = sh(idx.filter(i => S.items[i].mc)).concat(sh(idx.filter(i => !S.items[i].mc))), disp = {};
+  order.forEach((i, k) => { disp[i] = k + 1; });
+  return (S._mix = {key, order, disp, opt: S.items.map(p => p.mc ? sh(p.mc.map((o, k) => k)) : null)});
+}
 function sheetHTML(items, opts){
   const {mode, letter, seed} = opts;
   const school = $('school').value.trim();
   const notes = [...new Set(items.filter(p => !p.mc).map(p => p.note).filter(Boolean))];
   const verdict = st => st === true ? '<span class="verdict">Зөв</span>' : st === false ? '<span class="verdict">Буруу</span>' : S.checked ? '<span class="verdict" style="background:var(--paper-rule);color:var(--paper-muted)">Хоосон</span>' : '';
+  const mx = mode === 'online' ? mixOrder() : null, num = i => mx ? mx.disp[i] : i + 1, ord = mx ? mx.order : items.map((p, i) => i);
   const item = (p, i) => {
     const st = S.checked && mode === 'online' ? S.results[i] : null;
     const cls = ['ws-item', p.mc ? 'mc' : '', p.wide ? 'wide' : '', st === true ? 'ok' : st === false ? 'bad' : ''].join(' ');
@@ -171,9 +184,9 @@ function sheetHTML(items, opts){
     if(p.mc){
       const long = p.mc.some(o => { const t = o.replace(/<[^>]+>/g, ''); return t.length > 9 || /[=<>≤≥]|\/.*\//.test(t) || /class="(sys|mat)/.test(o); });
       if(mode === 'print') tail = `<div class="p-opts ${long ? 'long' : ''}">${p.mc.map((o, k) => `<span><b>${LETTER[k]}</b><span class="ov">${Mx(o)}</span></span>`).join('')}</div>`;
-      else tail = `<div class="p-mc ${long ? 'long' : ''}" role="group" aria-label="${i + 1}-р даалгаврын сонголт">${p.mc.map((o, k) => {
+      else tail = `<div class="p-mc ${long ? 'long' : ''}" role="group" aria-label="${num(i)}-р даалгаврын сонголт">${(mx ? mx.opt[i] : p.mc.map((o, k) => k)).map((k, pos) => { const o = p.mc[k];
           const c = S.checked ? (k === p.ci && (S.reveal || st === true) ? 'right' : k === S.choice[i] && st === false ? 'wrong' : '') : '';
-          return `<button type="button" class="opt ${c}" id="o${i}-${k}" data-mc="${i}" data-k="${k}" aria-pressed="${S.choice[i] === k}" ${S.checked ? 'disabled' : ''}><b>${LETTER[k]}</b><span>${Mx(o)}</span></button>`; }).join('')}</div>
+          return `<button type="button" class="opt ${c}" id="o${i}-${k}" data-mc="${i}" data-k="${k}" aria-pressed="${S.choice[i] === k}" ${S.checked ? 'disabled' : ''}><b>${LETTER[pos]}</b><span>${Mx(o)}</span></button>`; }).join('')}</div>
         ${S.checked ? `<div class="p-mcv">${verdict(st)}</div>` : ''}${misHTML(p, i, st)}${mode === 'online' ? hintHTML(p, i) : ''}`;
     } else if(mode === 'print') tail = `<div class="p-work" aria-hidden="true"></div><div class="p-ans">Хариу:<i></i></div>`;
     else {
@@ -183,17 +196,17 @@ function sheetHTML(items, opts){
         ${misHTML(p, i, st)}${hintHTML(p, i)}
         ${S.checked && S.reveal && st !== true ? `<div class="reveal">Зөв хариу: <b>${Mx(p.show)}</b></div>` : ''}`;
     }
-    return `<li class="${cls}"><span class="p-n">${i + 1}.</span><div class="p-q">${Mx(p.q)}</div>${p.fig ? `<div class="p-fig">${p.fig}</div>` : ''}${p.sat ? satHelp(p, mode) : ''}${tail}${mode === 'online' ? solHTML(p, i, st) : ''}${mode === 'online' && S.checked ? `<button class="rep-btn" type="button" data-rep="${i}">Даалгаварт алдаа байна уу?</button>` : ''}</li>`;
+    return `<li class="${cls}"><span class="p-n">${num(i)}.</span><div class="p-q">${Mx(p.q)}</div>${p.fig ? `<div class="p-fig">${p.fig}</div>` : ''}${p.sat ? satHelp(p, mode) : ''}${tail}${mode === 'online' ? solHTML(p, i, st) : ''}${mode === 'online' && S.checked ? `<button class="rep-btn" type="button" data-rep="${i}">Даалгаварт алдаа байна уу?</button>` : ''}</li>`;
   };
   const nmc = items.filter(p => p.mc).length, nopen = items.length - nmc;
   const mcNote = mode === 'print' ? 'Зөв хариултын үсгийг дугуйлна.' : 'Зөв хариултыг сонгоно.';
   let rows = '';
   if(nmc && nopen){
     rows += `<li class="p-sec">А хэсэг. Сонгох даалгавар<small>${mcNote}</small></li>`;
-    items.forEach((p, i) => { if(p.mc) rows += item(p, i); });
+    ord.forEach(i => { if(items[i].mc) rows += item(items[i], i); });
     rows += `<li class="p-sec">Б хэсэг. Задгай даалгавар<small>${mode === 'print' ? 'Бодолтоо бичиж, хариугаа зураасан дээр бичнэ.' : 'Хариугаа бичнэ.'}</small></li>`;
-    items.forEach((p, i) => { if(!p.mc) rows += item(p, i); });
-  } else rows = items.map(item).join('');
+    ord.forEach(i => { if(!items[i].mc) rows += item(items[i], i); });
+  } else rows = ord.map(i => item(items[i], i)).join('');
   const instr = nmc && nopen ? mcNote + ' ' + (mode === 'online' ? 'Задгай даалгаврын хариуг бичээд «Шалгах» товчийг дарна.' : 'Задгай даалгаврын бодолтыг мөрөнд, хариуг зураасан дээр бичнэ.')
     : nmc ? mcNote + (mode === 'online' ? ' Дараа нь «Шалгах» товчийг дарна.' : '')
     : notes.map(n => Mx(esc(n))).join(' ') + (mode === 'online' ? ' Хариугаа бичээд «Шалгах» товчийг дарна.' : nmc ? '' : ' Бодолтоо мөрөнд, хариугаа зураасан дээр бичнэ.');
@@ -274,7 +287,7 @@ function render(){
   const sc = $('score');
   if(S.student && S.checked){
     const ok = S.results.filter(x => x === true).length, n = S.items.length, pct = Math.round(ok / n * 100);
-    const miss = S.results.map((x, i) => x === true ? null : i + 1).filter(Boolean);
+    const mxo = mixOrder(), miss = S.results.map((x, i) => x === true ? null : mxo ? mxo.disp[i] : i + 1).filter(Boolean).sort((a, b) => a - b);
     sc.hidden = false;
     sc.innerHTML = `<div class="result-card">
       <div class="rc-score"><b>${ok} / ${n}</b> <span class="small">зөв · ${pct}%</span></div>
@@ -403,7 +416,7 @@ on('clearBtn', 'click', () => { S.answers = {}; S.choice = {}; S.checked = false
 on('pdfBtn', 'click', exportPDF);
 
 /* ---------- Сурагчдад цахимаар өгөх ---------- */
-const shareURL = () => { const t = Number(($('shareTime') || {}).value || 0); return location.href.split('#')[0] + '#' + ($('shareReveal').checked ? 'sr-' : 's-') + code() + (t > 0 ? '~' + t : '') + linkTag(); };
+const shareURL = () => { const t = Number(($('shareTime') || {}).value || 0), mix = document.getElementById('shareMix'); return location.href.split('#')[0] + '#' + ($('shareReveal').checked ? 'sr-' : 's-') + code() + (mix && mix.checked ? '!' : '') + (t > 0 ? '~' + t : '') + linkTag(); };
 function updateShare(){
   if(S.student) return;
   const url = shareURL(); $('shareLink').value = url;
@@ -421,6 +434,7 @@ on('copyLink', 'click', async () => {
 });
 on('shareLink', 'focus', e => e.target.select());
 on('shareReveal', 'change', () => { updateShare(); if(S.mode === 'print') render(); });
+{ const mx = document.getElementById('shareMix'); if(mx){ try { mx.checked = localStorage.getItem('ws_mix') === '1'; } catch(e){} mx.addEventListener('change', () => { try { localStorage.setItem('ws_mix', mx.checked ? '1' : '0'); } catch(e){} updateShare(); }); } }
 on('shareTime', 'change', () => { updateShare(); if(S.mode === 'print') render(); });
 on('qrBig', 'click', () => {
   if(!window.qrcode) return; const q = qrcode(0, 'M'); q.addData(shareURL()); q.make();
@@ -455,7 +469,7 @@ document.addEventListener('click', async e => {
 });
 on('sheet', 'input', e => { if(e.target.dataset.i != null) S.answers[e.target.dataset.i] = e.target.value; });
 on('sheet', 'keydown', e => {
-  if(e.key === 'Enter' && e.target.dataset.i != null){ e.preventDefault(); const nx = $('a' + (Number(e.target.dataset.i) + 1)); if(nx) nx.focus(); else check(); }
+  if(e.key === 'Enter' && e.target.dataset.i != null){ e.preventDefault(); const ins = [...document.querySelectorAll('#sheet input[data-i]')], nx = ins[ins.indexOf(e.target) + 1]; if(nx) nx.focus(); else check(); }
 });
 on('codeForm', 'submit', e => {
   e.preventDefault();
@@ -497,7 +511,7 @@ function nextURL(level){
   let nmc = S.items.filter(p => p.mc).length, nop = S.items.length - nmc;
   if(level === 5 && S.level !== 5){ nmc = 4; nop = 2; }   // SAT шат: 4 сонгох + 2 задгай (SAT-ийн харьцаатай ойролцоо)
   const seed = 1000 + Math.floor(Math.random() * 98000);
-  return location.pathname + location.search + `#${S.allowReveal ? 'sr' : 's'}-${S.grade}-${S.topic}-${level}-${nmc}+${nop}-${seed}${S.limit ? '~' + S.limit : ''}${linkTag()}`;
+  return location.pathname + location.search + `#${S.allowReveal ? 'sr' : 's'}-${S.grade}-${S.topic}-${level}-${nmc}+${nop}-${seed}${S.mix ? '!' : ''}${S.limit ? '~' + S.limit : ''}${linkTag()}`;
 }
 function ladderHTML(best){
   return `<ol class="ladder" aria-label="Түвшнээр ахих зам">${[1, 2, 3].concat(satOK() ? [5] : []).map(l => { const b = best[l], st = b >= PASS ? 'done' : l === S.level ? 'now' : '';
@@ -566,9 +580,10 @@ function dailyHash(){
   const g = +m[1], d = new Date(), n = W.topicsOf(g).length, day = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5);
   S.daily = true; return `#s-${g}-${1 + (day * 37) % n}-2-0+1-${(d.getFullYear() % 100) * 10000 + (d.getMonth() + 1) * 100 + d.getDate()}`;
 }
-const hm = (dailyHash() || location.hash || '').match(/^#(w|s|sr)-([^~@]+)(?:~(\d{1,3}))?(?:@([A-Za-z0-9_-]{20,140}))?$/), h = hm && parseCode(decodeURIComponent(hm[2]));
-if(hm && hm[4]) linkSid = hm[4];
-S.limit = hm && hm[3] ? Math.min(240, Number(hm[3])) : 0;
+const hm = (dailyHash() || location.hash || '').match(/^#(w|s|sr)-([^~@!]+)(!)?(?:~(\d{1,3}))?(?:@([A-Za-z0-9_-]{20,140}))?$/), h = hm && parseCode(decodeURIComponent(hm[2]));
+if(hm && hm[5]) linkSid = hm[5];
+S.limit = hm && hm[4] ? Math.min(240, Number(hm[4])) : 0;
+S.mix = !!(hm && hm[3]);   // «!» — даалгавар, сонголтын дарааллыг сурагч бүрт холих
 if(h && W.GRADES.includes(h.grade)){
   applyCode(h); S.mode = 'online';
   if(hm[1] !== 'w' && validTopic(S.grade, S.topic)){
