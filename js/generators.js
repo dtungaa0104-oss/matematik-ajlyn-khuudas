@@ -1903,16 +1903,21 @@
       .replace(/\+ [−-](?=\s?\d)/g, '− ')
       .replace(/\((?: |&nbsp;)+/g, '(').replace(/ +\)/g, ')').replace(/([^ ])  +(?=[^ ])/g, '$1 ');
   }
+  const SATNOTE = 'Enter your answer as a number, for example ⟦3/4⟧ or ⟦0.75⟧. (Хариуг тоо, бутархай эсвэл аравтын бутархайгаар бичнэ.)';
+  /* SAT шатны үүсгэгчдийг сэдэвт холбох: map = {сэдвийн id: ур чадварын нэр}, fns = {нэр: (r, анги) => даалгавар} */
+  function addSat(map, fns){ T.forEach(t => { const k = map[t.id]; if(k && fns[k]) t.sat = r => fns[k](r, t.grade); }); }
+  const hasSat = (grade, topicIdx) => { const all = topicsOf(grade); return topicIdx === 0 ? all.some(t => t.sat) : topicIdx > 100 ? all.some(t => t.ch === topicIdx - 100 && t.sat) : !!(all[topicIdx - 1] && all[topicIdx - 1].sat); };
   function makeSheet(grade, topicIdx, level, count, seed, form){
     const rng = mulberry32(seed * 7919 + grade * 131 + topicIdx * 17 + level), r = R(rng);
     const all = topicsOf(grade), tps = topicIdx > 100 ? all.filter(t => t.ch === topicIdx - 100) : all, mixed = topicIdx === 0 || topicIdx > 100;
     const items = [], seen = new Set();
-    for(let k = 0, tries = 0; items.length < count && tries < count * 60; tries++){
-      const t = mixed ? tps[k % tps.length] : all[topicIdx - 1];
-      const p = t.gen(r, level);
+    const pool = level === 5 ? tps.filter(t => t.sat) : tps;   // 5 — SAT шат (js/sat-math.js)
+    for(let k = 0, tries = 0; items.length < count && tries < count * 60 && pool.length; tries++){
+      const t = mixed ? pool[k % pool.length] : all[topicIdx - 1];
+      const p = level === 5 ? (t.sat ? t.sat(r) : null) : t.gen(r, level);
       if(!p || seen.has(p.q)) continue;
       if(t.timeval) p.valid = c => c.length === 2 && c[0] >= 0 && c[0] < 24 && c[1] >= 0 && c[1] < 60 && Number.isInteger(c[0]) && Number.isInteger(c[1]);
-      seen.add(p.q); items.push(Object.assign(p, { tid: t.id, topic: t.title, note: t.note, wide: !!t.wide, root: !!t.root, ch: t.ch, page: t.page })); k++;
+      seen.add(p.q); items.push(Object.assign(p, { tid: t.id, topic: t.title, note: level === 5 ? (p.note || SATNOTE) : t.note, wide: !!t.wide, root: !!t.root, ch: t.ch, page: t.page })); k++;
     }
     if(form){
       const crng = mulberry32(seed * 104729 + grade * 7919 + topicIdx * 131 + level * 17 + 11), nmc = typeof form === 'object' ? Math.min(form.mc, items.length) : form === 1 ? items.length : Math.ceil(items.length / 2);
@@ -1953,5 +1958,6 @@
     const v = parseVal(s);
     return !isNaN(v) && Math.abs(v - p.v[0]) < 1e-6;
   }
-  window.WS = { GRADES, TOPICS: T, topicsOf, makeSheet, makeUnit, check, mkind, parseVal, pretty, CHAPTERS: { 6: CH6, 7: CH7, 8: CH8, 9: CH9, 10: CH10, 11: CH11, 12: CH12 }, BOOKS: {} };
+  window.WS = { GRADES, TOPICS: T, topicsOf, makeSheet, makeUnit, check, mkind, parseVal, pretty, addSat, hasSat,
+    H: { R, fmt, par, frac, poly, num, list, tup, so, gcd, sup, dList, fg, gLine, gCurve, addChoices, polish, mulberry32 }, CHAPTERS: { 6: CH6, 7: CH7, 8: CH8, 9: CH9, 10: CH10, 11: CH11, 12: CH12 }, BOOKS: {} };
 })();

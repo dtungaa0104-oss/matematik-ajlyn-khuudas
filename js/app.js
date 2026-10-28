@@ -1,6 +1,6 @@
 /* Математикийн ажлын хуудас — хуудасны логик */
 const W = window.WS;
-const LV = {1: 'Мэдлэг, ойлголт', 2: 'Чадвар', 3: 'Хэрэглээ', 4: 'Нэгжийн шалгалт'};
+const LV = {1: 'Мэдлэг, ойлголт', 2: 'Чадвар', 3: 'Хэрэглээ', 4: 'Нэгжийн шалгалт', 5: 'SAT шат'};
 const LETTER = ['А', 'Б', 'В', 'Г'];
 const FORMS = {0: 'Задгай', 1: 'Тест', 2: 'Холимог'};
 const PRESETS = [[10, 0, 'Тест 10'], [0, 10, 'Задгай 10'], [5, 5, '5 + 5'], [10, 5, '10 + 5']];
@@ -11,10 +11,11 @@ const formArg = () => S.legacy ? S.legacy.form : {mc: S.mc};
 const formLabel = () => { if(S.level === 4 && S.unit) return `${S.unit[0]} мэдлэг, ${S.unit[1]} чадвар, ${S.unit[2]} хэрэглээ`; if(S.legacy) return FORMS[S.legacy.form]; return S.mc && S.op ? `${S.mc} сонгох + ${S.op} задгай` : S.mc ? 'Тест' : 'Задгай'; };
 function applyLegacy(count, form){ count = Math.max(1, Math.min(40, count)); S.legacy = {count, form}; const m = form === 1 ? count : form === 2 ? Math.ceil(count / 2) : 0; S.mc = m; S.op = count - m; }
 function parseCode(str){
-  const m = String(str).match(/^(\d{1,2})-(\d{1,3})-([1234])-(?:(\d{1,2})\+(\d{1,2})|(\d{1,2})-([012])|(\d{1,2})\.(\d{1,2})\.(\d{1,2})|(\d{1,2}))-(\d{1,6})$/);
+  const m = String(str).match(/^(\d{1,2})-(\d{1,3})-([12345])-(?:(\d{1,2})\+(\d{1,2})|(\d{1,2})-([012])|(\d{1,2})\.(\d{1,2})\.(\d{1,2})|(\d{1,2}))-(\d{1,6})$/);
   if(!m) return null;
   const r = {grade: Number(m[1]), topic: Number(m[2]), level: Number(m[3]), seed: Number(m[12])};
   if((r.level === 4) !== (m[8] != null)) return null;
+  if(r.level === 5 && !(r.grade >= 6 && W.hasSat && W.hasSat(r.grade, r.topic))) return null;   // 5-р шат: 6–7 «Англи гүүр», 8-аас SAT
   if(m[8] != null){ r.unit = [Number(m[8]), Number(m[9]), Number(m[10])]; const n = r.unit[0] + r.unit[1] + r.unit[2]; if(n < 1 || n > 40) return null; return r; }
   if(m[11] != null){ r.count = Number(m[11]); r.form = 0; return r; }
   if(m[4] != null){ r.mc = Number(m[4]); r.op = Number(m[5]); if(r.mc + r.op < 1 || r.mc + r.op > 40) return null; }
@@ -98,7 +99,7 @@ function controls(){
   $('forms').innerHTML = PRESETS.map(([m, o, t], i) => `<button type="button" data-f="${i}" aria-pressed="${!S.legacy && S.mc === m && S.op === o}">${t}</button>`).join('');
   $('mcCount').value = String(Math.min(20, S.mc)); $('opCount').value = String(Math.min(20, S.op));
   $('cntNote').textContent = `Нийт ${S.mc + S.op} даалгавар: ${S.mc} сонгох, ${S.op} задгай.`;
-  $('levels').innerHTML = [1, 2, 3].map(l => `<button type="button" data-l="${l}" aria-pressed="${l === S.level}">${LV[l]}</button>`).join('');
+  $('levels').innerHTML = [1, 2, 3].concat(satOK() ? [5] : []).map(l => `<button type="button" data-l="${l}" aria-pressed="${l === S.level}"${l === 5 ? ` class="lv-sat" title="${lvName(5)}: Хэрэглээний дараах англи хэл дээрх бодлого (${W.SAT_BAND(S.grade)})"` : ''}>${l === 5 ? (S.grade >= 8 ? 'SAT' : 'Англи') : LV[l]}</button>`).join('');
   unitControls();
   $('codeOut').textContent = code();
   if(typeof updateShare === 'function') updateShare();
@@ -152,6 +153,12 @@ function solHTML(p, i, st){
 }
 document.addEventListener('toggle', e => { const d = e.target; if(d && d.matches && d.matches('details[data-sol]')) S.solOpen[d.dataset.sol] = d.open; }, true);
 
+/* SAT шатны монгол тусламж: юу асууж байгаа, нэр томьёо (үргэлж нээлттэй) */
+function satHelp(p, mode){
+  const gl = (p.gl || []).map(([e, m]) => `<span><b lang="en">${esc(e)}</b> — ${esc(m)}</span>`).join('');
+  if(mode === 'print') return `<div class="sat-help print"><span class="sat-gl">${gl}</span></div>`;
+  return `<details class="sat-help" open><summary>Монгол тусламж</summary><p class="sat-mn">${Mx(esc(p.mn || ''))}</p><p class="sat-gl">${gl}</p></details>`;
+}
 function sheetHTML(items, opts){
   const {mode, letter, seed} = opts;
   const school = $('school').value.trim();
@@ -176,7 +183,7 @@ function sheetHTML(items, opts){
         ${misHTML(p, i, st)}${hintHTML(p, i)}
         ${S.checked && S.reveal && st !== true ? `<div class="reveal">Зөв хариу: <b>${Mx(p.show)}</b></div>` : ''}`;
     }
-    return `<li class="${cls}"><span class="p-n">${i + 1}.</span><div class="p-q">${Mx(p.q)}</div>${p.fig ? `<div class="p-fig">${p.fig}</div>` : ''}${tail}${mode === 'online' ? solHTML(p, i, st) : ''}${mode === 'online' && S.checked ? `<button class="rep-btn" type="button" data-rep="${i}">Даалгаварт алдаа байна уу?</button>` : ''}</li>`;
+    return `<li class="${cls}"><span class="p-n">${i + 1}.</span><div class="p-q">${Mx(p.q)}</div>${p.fig ? `<div class="p-fig">${p.fig}</div>` : ''}${p.sat ? satHelp(p, mode) : ''}${tail}${mode === 'online' ? solHTML(p, i, st) : ''}${mode === 'online' && S.checked ? `<button class="rep-btn" type="button" data-rep="${i}">Даалгаварт алдаа байна уу?</button>` : ''}</li>`;
   };
   const nmc = items.filter(p => p.mc).length, nopen = items.length - nmc;
   const mcNote = mode === 'print' ? 'Зөв хариултын үсгийг дугуйлна.' : 'Зөв хариултыг сонгоно.';
@@ -197,7 +204,7 @@ function sheetHTML(items, opts){
       <div class="p-grade">${S.grade}-р анги${letter ? ' · Хувилбар ' + letter : ''}</div>
       <h2 class="p-topic">${Mx(esc(topicTitle()))}</h2>
       ${bookRef() ? `<div class="p-book">${esc(bookRef())}</div>` : ''}
-      <div class="p-meta">${S.level === 4 ? 'Нэгжийн шалгалт (гурван түвшин)' : LV[S.level] + ' түвшин'} · ${formLabel()} · ${items.length} даалгавар · Код ${label}</div>
+      <div class="p-meta">${S.level === 4 ? 'Нэгжийн шалгалт (гурван түвшин)' : S.level === 5 ? (S.grade >= 8 ? `SAT шат (${W.SAT_BAND(S.grade)}, англи хэлээр)` : 'Англи гүүр (англи хэлээр, монгол тусламжтай)') : LV[S.level] + ' түвшин'} · ${formLabel()} · ${items.length} даалгавар · Код ${label}</div>
       ${mode === 'print' ? `<div class="p-fields"><span>Нэр:<i></i></span><span>Бүлэг:<i></i></span><span>Огноо:<i></i></span><span>Оноо:<i></i>/${items.length}</span></div>` : ''}
     </div>
     <p class="p-instr"><b>Заавар.</b> ${instr}${nmc && nopen && notes.length ? '<br><b>Хариуны хэлбэр.</b> ' + notes.map(n => Mx(esc(n))).join(' ') : ''}</p>
@@ -221,7 +228,10 @@ function keyHTML(items, letter, seed){
 }
 
 /* Хуудас үүсгэх: нэгжийн шалгалт эсвэл энгийн хуудас */
-const genSheet = seed => S.level === 4 && S.unit && W.makeUnit ? W.makeUnit(S.grade, S.topic, S.unit, seed) : W.makeSheet(S.grade, S.topic, Math.min(3, S.level), total(), seed, formArg());
+/* SAT шат: 8-р ангиас эхлэн, SAT-д тохирох сэдэвт (js/sat-math.js) */
+const satOK = (g = S.grade, t = S.topic) => g >= 6 && !!(W.hasSat && W.SAT_NAME && W.hasSat(g, t));
+const lvName = (l, g = S.grade) => l === 5 && W.SAT_NAME ? W.SAT_NAME(g) : LV[l];
+const genSheet = seed => S.level === 4 && S.unit && W.makeUnit ? W.makeUnit(S.grade, S.topic, S.unit, seed) : W.makeSheet(S.grade, S.topic, S.level === 5 ? 5 : Math.min(3, S.level), total(), seed, formArg());
 /* Багшийн самбар: нэгжийн шалгалтын тохиргоо (түвшин бүрийн даалгаврын тоо) */
 function unitControls(){
   const lv = $('levels'); if(!lv || !lv.parentNode) return;
@@ -242,6 +252,7 @@ function unitControls(){
 }
 function build(){
   if(S.level === 4 && !S.unit) S.unit = [4, 4, 2];
+  if(S.level === 5 && !satOK()) S.level = 3;
   S.items = genSheet(S.seed);
   S.answers = {}; S.choice = {}; S.checked = false; S.reveal = false; S.results = []; S.solOpen = {}; S.hints = {};
   render();
@@ -483,19 +494,25 @@ function unitResultHTML(){
   return `<div class="path"><ul class="unit-res">${rows}</ul><p class="small">${msg}</p>${weak ? `<div class="result-actions"><a class="btn" href="${link(weak.l)}" data-go>«${LV[weak.l]}» түвшинг давтах</a></div>` : ''}</div>`;
 }
 function nextURL(level){
-  const nmc = S.items.filter(p => p.mc).length, nop = S.items.length - nmc;
+  let nmc = S.items.filter(p => p.mc).length, nop = S.items.length - nmc;
+  if(level === 5 && S.level !== 5){ nmc = 4; nop = 2; }   // SAT шат: 4 сонгох + 2 задгай (SAT-ийн харьцаатай ойролцоо)
   const seed = 1000 + Math.floor(Math.random() * 98000);
   return location.pathname + location.search + `#${S.allowReveal ? 'sr' : 's'}-${S.grade}-${S.topic}-${level}-${nmc}+${nop}-${seed}${S.limit ? '~' + S.limit : ''}${linkTag()}`;
 }
 function ladderHTML(best){
-  return `<ol class="ladder" aria-label="Түвшнээр ахих зам">${[1, 2, 3].map(l => { const b = best[l], st = b >= PASS ? 'done' : l === S.level ? 'now' : '';
-    return `<li class="${st}"${l === S.level ? ' aria-current="step"' : ''}><span class="lad-dot">${b >= PASS ? '✓' : l}</span><span class="lad-txt">${LV[l]}${b != null ? ` <em>${b}%</em>` : ''}</span></li>`; }).join('')}</ol>`;
+  return `<ol class="ladder" aria-label="Түвшнээр ахих зам">${[1, 2, 3].concat(satOK() ? [5] : []).map(l => { const b = best[l], st = b >= PASS ? 'done' : l === S.level ? 'now' : '';
+    return `<li class="${st}${l === 5 ? ' lad-sat' : ''}"${l === S.level ? ' aria-current="step"' : ''}><span class="lad-dot">${b >= PASS ? '✓' : l === 5 ? (S.grade >= 8 ? 'S' : 'E') : l}</span><span class="lad-txt">${l === 5 ? (S.grade >= 8 ? 'SAT' : 'Англи гүүр') : LV[l]}${b != null ? ` <em>${b}%</em>` : ''}</span></li>`; }).join('')}</ol>`;
 }
 function pathHTML(pct){
   const best = loadPath(); if(!(best[S.level] >= pct)) best[S.level] = pct;
   let msg, btn;
   if(pct >= PASS && S.level < 3){ msg = `Та «${LV[S.level]}» түвшинг давлаа. Дараагийн «${LV[S.level + 1]}» түвшин нээгдлээ.`; btn = `<a class="btn" href="${nextURL(S.level + 1)}" data-go>«${LV[S.level + 1]}» түвшинд шилжих</a>`; }
+  else if(pct >= PASS && S.level === 3 && satOK() && S.grade < 8){ msg = 'Та энэ сэдвийн гурван түвшнийг бүгдийг давлаа! Дараагийн шат — <b>Англи гүүр</b>: ижил сэдвийн богино бодлого англи хэлээр. Монгол тусламж, нэр томьёоны тайлбар хажууд нь байна. 8-р ангиас SAT шат нээгдэнэ.'; btn = `<a class="btn" href="${nextURL(5)}" data-go>Англи гүүр шатанд шилжих</a>`; }
+  else if(pct >= PASS && S.level === 3 && satOK()){ msg = `Та энэ сэдвийн гурван түвшнийг бүгдийг давлаа! Дараагийн шат — <b>SAT</b>: ижил сэдвийн бодлого англи хэлээр, ${W.SAT_BAND(S.grade)}-ийн хэлбэр, хүндрэлтэй. Монгол тусламж, нэр томьёоны тайлбар үргэлж хажууд нь байна.`; btn = `<a class="btn" href="${nextURL(5)}" data-go>SAT шатанд шилжих</a>`; }
+  else if(pct >= PASS && S.level === 5 && S.grade < 8){ msg = 'Та Англи гүүр шатыг давлаа! Математикаа англиар ч бодож чаддаг боллоо. 8-р ангиас SAT-ийн хэлбэрийн бодлого нээгдэнэ.'; btn = `<a class="btn ghost" href="${nextURL(5)}" data-go>Өөр англи бодлого бодох</a>`; }
+  else if(pct >= PASS && S.level === 5){ msg = `Та SAT шатыг давлаа! Энэ сэдвийг Монгол хөтөлбөрөөр ч, олон улсын шалгалтын хэлбэрээр ч бодож чаддаг боллоо.`; btn = `<a class="btn ghost" href="${nextURL(5)}" data-go>Өөр SAT бодлого бодох</a>${window.SAT ? '<button class="btn ghost" type="button" data-sat>Бүтэн SAT тест (Оноо1600)</button>' : ''}`; }
   else if(pct >= PASS){ msg = 'Та энэ сэдвийн гурван түвшнийг бүгдийг давлаа. Баяр хүргэе!'; btn = `<a class="btn ghost" href="${nextURL(3)}" data-go>Шинэ хувилбараар дахин бататгах</a>`; }
+  else if(S.level === 5){ msg = `${S.grade >= 8 ? 'SAT шатыг' : 'Англи гүүрийг'} давахад ${PASS}% хэрэгтэй. Монгол тусламж, бодолтыг уншаад дахин оролдоорой. Англи нэр томьёо шинэ байвал «Монгол тусламж»-ийг ашиглаарай.`; btn = `<a class="btn" href="${nextURL(5)}" data-go>Шинэ SAT хувилбар бөглөх</a>`; }
   else { msg = `Дараагийн түвшин нээгдэхэд ${PASS}% хэрэгтэй. Алдсан даалгавраа нягталж, ижил түвшний шинэ хувилбарыг бөглөөрэй.`; btn = `<a class="btn" href="${nextURL(S.level)}" data-go>Шинэ хувилбар бөглөх</a>`; }
   return `<div class="path">${ladderHTML(best)}<p class="small">${msg}</p><div class="result-actions">${btn}</div></div>`;
 }

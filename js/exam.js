@@ -156,7 +156,7 @@
       return r; };
     const r0 = window.render;
     window.render = function(){
-      const res = r0.apply(this, arguments), on = T.on && S.mode !== 'results';
+      const res = r0.apply(this, arguments), on = T.on && S.mode !== 'results' && S.mode !== 'sat';
       document.body.classList.toggle('esh-mode', on);
       if(on){ $('sheet').innerHTML = paperHTML(T.seed, T.key); $('score').hidden = true; panel(); }
       return res;
@@ -213,14 +213,14 @@
       finally { btn.disabled = false; box.innerHTML = ''; window.scrollTo(sx, sy); }
     }
     document.addEventListener('click', async e => {
-      if(e.target.closest('[data-esh]')){ T.on = true; keep(); if(S.mode === 'results') S.mode = 'online'; render(); window.scrollTo(0, 0); return; }
+      if(e.target.closest('[data-esh]')){ T.on = true; keep(); if(S.mode === 'results' || S.mode === 'sat') S.mode = 'online'; render(); window.scrollTo(0, 0); return; }
       if(!T.on) return;
       if(e.target.closest('#eshNew')){ T.seed = 1000 + Math.floor(Math.random() * 98000); keep(); render(); return; }
       if(e.target.closest('#eshCopy')){ const ok = await copyText(link()); say(ok ? 'Сорилын холбоос хуулагдлаа.' : 'Хуулж чадсангүй: ' + link(), ok ? 'ok' : 'err'); return; }
       if(e.target.closest('[data-eshtry]')){ intro(T.seed, true); return; }
       if(e.target.closest('#eshPdf')){ pdf(); }
     });
-    document.addEventListener('click', e => { if(e.target.closest('[data-g]') && T.on){ T.on = false; keep(); } }, true);   // анги сонгоход энгийн горимд буцна (app.js build хийнэ)
+    document.addEventListener('click', e => { if(e.target.closest('[data-g], [data-satm]') && T.on){ T.on = false; keep(); } }, true);   // анги сонгоход энгийн горимд буцна (app.js build хийнэ)
     document.addEventListener('change', e => { if(e.target.id === 'eshKey'){ T.key = e.target.checked; keep(); render(); } });
     document.addEventListener('focusin', e => { if(e.target.id === 'eshLink') e.target.select(); });
     if(T.on) render(); else controls();

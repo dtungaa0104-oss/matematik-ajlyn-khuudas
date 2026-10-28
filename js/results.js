@@ -17,7 +17,7 @@
     const htag = hn.length ? `[Сэжүүр: ${hn.join(', ')}] ` : '';
     const answers = tag + htag + S.items.map((p, i) => `${i + 1}) ${p.mc ? (S.choice[i] == null ? '—' : LETTER[S.choice[i]]) : ((S.answers[i] || '').trim() || '—')}`).join('; ');
     return {
-      code: code(), grade: S.grade, topic: plain(topicTitle()), level: LV[S.level], form: formLabel(),
+      code: code(), grade: S.grade, topic: plain(topicTitle()), level: typeof lvName === 'function' ? lvName(S.level) : LV[S.level], form: formLabel(),
       name: $('stName').value.trim(), group: $('stClass').value.trim(),
       score: ok, total: n, minutes: S.startedAt ? (Date.now() - S.startedAt) / 60000 : 0,
       missed: S.results.map((x, i) => x === true ? null : i + 1).filter(Boolean).join(', '),
@@ -82,7 +82,7 @@
     try { res = await fetch(url + '?action=ping'); text = await res.text(); }
     catch(e){ return {ok: false, msg: 'Скрипт хандалт зөвшөөрөхгүй байна. Apps Script → Управление развертываниями → ✏️ → «У кого есть доступ: Все» (Anyone) болгож, «Версия: Новая версия» сонгоод «Развернуть» дарна уу. Сургуулийн (Workspace) бүртгэлд «Все» сонголт байхгүй бол хувийн Gmail бүртгэлээр скриптээ үүсгэнэ үү.'}; }
     let j = null; try { j = JSON.parse(text); } catch(e){}
-    if(j && j.ok && j.app === 'ajlyn-khuudas') return (j.v || 1) < 2 ? {ok: false, msg: 'Холболт хэвийн, гэхдээ скрипт хуучин хувилбартай: «10+5» хэлбэрийн шинэ кодтой дүнг хүлээж авахгүй. apps-script/Code.gs-ийн шинэ кодыг хуулж тавиад «Управление развертываниями → ✏️ → Новая версия → Развернуть» хийнэ үү.'} : (j.v || 1) < 9 ? {ok: true, msg: `Холболт хэвийн ✓ Дүн цуглуулалт ажиллаж байна (v${j.v || 1}). Шууд хяналт, нэгжийн шалгалт, алдаа мэдээлэх, хамтын зорилго, нэрсийн жагсаалт, архивлах боломжийг ашиглах бол apps-script/Code.gs-ийн шинэ кодыг (v9) хуулж тавиад «Новая версия» болгон дахин байршуулна уу.`} : {ok: true, msg: 'Холболт хэвийн ✓ Скрипт хамгийн сүүлийн хувилбартай (v9).'};
+    if(j && j.ok && j.app === 'ajlyn-khuudas') return (j.v || 1) < 2 ? {ok: false, msg: 'Холболт хэвийн, гэхдээ скрипт хуучин хувилбартай: «10+5» хэлбэрийн шинэ кодтой дүнг хүлээж авахгүй. apps-script/Code.gs-ийн шинэ кодыг хуулж тавиад «Управление развертываниями → ✏️ → Новая версия → Развернуть» хийнэ үү.'} : (j.v || 1) < 11 ? {ok: true, msg: `Холболт хэвийн ✓ Дүн цуглуулалт ажиллаж байна (v${j.v || 1}). SAT Math жишиг тест, SAT шат, шууд хяналт, нэгжийн шалгалт, алдаа мэдээлэх, хамтын зорилго, нэрсийн жагсаалт, архивлах боломжийг ашиглах бол apps-script/Code.gs-ийн шинэ кодыг (v11) хуулж тавиад «Новая версия» болгон дахин байршуулна уу.`} : {ok: true, msg: 'Холболт хэвийн ✓ Скрипт хамгийн сүүлийн хувилбартай (v11).'};
     if(j && j.ok === false && j.error === 'key') return {ok: false, msg: 'Скрипт хуучин хувилбартай байна. Code.gs-ийг шинэчлээд «Управление развертываниями → ✏️ → Новая версия → Развернуть» хийнэ үү.'};
     if(/<html/i.test(text || '')) return {ok: false, msg: 'Скриптээс HTML хуудас ирлээ (нэвтрэх хуудас эсвэл алдаа). Хандах эрх «Все» эсэх, Code.gs бүтэн хадгалагдсан эсэхийг шалгаад шинэ хувилбараар дахин байршуулна уу.'};
     return {ok: false, msg: 'Скриптийн хариу танигдсангүй (HTTP ' + (res && res.status) + ').'};
@@ -330,6 +330,8 @@
     const items = sheetOf(r.code) || [], d = String(r.detail || '');
     return [1, 2, 3].map(l => { const idx = items.map((p, i) => p.lvl === l ? i : -1).filter(i => i >= 0); return {l, n: idx.length, pct: idx.length ? Math.round(idx.filter(i => d[i] === '1').length / idx.length * 100) : null}; }).filter(x => x.n);
   }
+  const LVN = l => l === 5 && R.cg < 8 ? 'Англи гүүр' : LV[l];
+  const LVS = () => R.cg >= 6 ? [1, 2, 3, 5] : [1, 2, 3];   // 5-р шат: 6–7 «Англи гүүр» (E), 8-аас SAT (S)
   const pctCls = v => v >= 80 ? 'g' : v >= 50 ? 'm' : 'b';
   function classModel(){
     const all = (R.all || []).map(r => Object.assign({}, r, {u: unitOf(r.code)})).filter(r => W.GRADES.includes(r.u.g) && r.u.ch != null && LV[r.u.l] && Number(r.total) > 1);  // өдрийн бодлогыг (1 даалгавар) хасна
@@ -348,7 +350,7 @@
       const k = NK(r.name) + '|' + NK(r.group);
       let s = st.get(k); if(!s) st.set(k, s = {k, name: String(r.name).trim(), group: String(r.group).trim(), cells: {}, list: []});
       s.list.push(r);
-      const c = s.cells[r.u.ch] || (s.cells[r.u.ch] = {1: [], 2: [], 3: []});
+      const c = s.cells[r.u.ch] || (s.cells[r.u.ch] = {1: [], 2: [], 3: [], 5: []});
       if(r.u.l === 4){ unitLevels(r).forEach(x => c[x.l].push(x.pct)); } else c[r.u.l].push(r.pct);
     });
     const students = [...st.values()];
@@ -364,7 +366,7 @@
       s.base = s.flags.some(f => f.kind === 'low' && f.l === 1);
     });
     students.sort((a, b) => (a.group + ' ' + a.name).localeCompare(b.group + ' ' + b.name, 'mn'));
-    const colAvg = cols.map(c => [1, 2, 3].map(l => { const v = students.map(s => s.cells[c.ch] && s.cells[c.ch][l]).filter(a => a && a.length).map(a => a[a.length - 1]); return v.length ? {avg: Math.round(v.reduce((x, y) => x + y, 0) / v.length), n: v.length} : null; }));
+    const colAvg = cols.map(c => LVS().map(l => { const v = students.map(s => s.cells[c.ch] && s.cells[c.ch][l]).filter(a => a && a.length).map(a => a[a.length - 1]); return v.length ? {avg: Math.round(v.reduce((x, y) => x + y, 0) / v.length), n: v.length} : null; }));
     const watch = students.filter(s => s.flags.length || (s.avg != null && s.avg < 50)).sort((a, b) => (b.base - a.base) || (a.avg - b.avg));
     return {grades, groups, cols, colName, students, colAvg, watch, rs};
   }
@@ -389,11 +391,28 @@
       <div class="tbl-wrap"><table class="rtable"><thead><tr><th>Нэр</th><th>Бүлэг</th><th class="num">Сорил</th><th class="num">Сүүлийн</th><th class="num">1-р хэсэг</th><th class="num">2-р хэсэг</th><th class="num">Хамгийн сайн</th><th>Огноо</th></tr></thead><tbody>${trs}</tbody></table></div>
       <div class="ex-agg">${str.map(x => `<div><span>${esc(x.name)}</span><div class="ex-sbar"><span style="width:${x.pc}%"></span></div><b class="${x.pc < 50 ? 'tbad' : ''}">${x.pc}%</b></div>`).join('')}</div>`;
   }
+  /* ---------- SAT Math жишиг тест (код S-54321) ---------- */
+  function satxHTML(){
+    if(!window.SATX) return '';
+    const rows = (R.all || []).filter(r => /^S-\d+$/.test(r.code) && (!R.cgrp || NK(r.group) === R.cgrp)).sort((a, b) => a.time < b.time ? -1 : 1);
+    if(!rows.length) return '';
+    const st = new Map(); rows.forEach(r => { const k = NK(r.name) + '|' + NK(r.group); const e = st.get(k) || {name: r.name, group: r.group, list: []}; e.list.push(r); st.set(k, e); });
+    const D = Object.keys(SATX.DOMS), agg = Object.fromEntries(D.map(d => [d, {ok: 0, n: 0}]));
+    const trs = [...st.values()].sort((a, b) => (a.group + a.name).localeCompare(b.group + b.name, 'mn')).map(e => {
+      const last = e.list[e.list.length - 1], path = /Module 2: хүнд/.test(last.answers) ? 'hard' : 'easy', seed = Number(last.code.slice(2)), det = String(last.detail || '');
+      const M = [...SATX.module(seed, 'm1'), ...SATX.module(seed, path)]; let ok = 0;
+      M.forEach((p, i) => { agg[p.dom].n++; if(det[i] === '1'){ agg[p.dom].ok++; ok++; } });
+      const best = Math.max(...e.list.map(r => r.score));
+      return `<tr><td>${esc(e.name)}</td><td>${esc(e.group)}</td><td class="num">${e.list.length}</td><td class="num"><b>${last.score}</b></td><td class="num">${ok}/44</td><td>${path === 'hard' ? 'хүнд' : 'хялбар'}</td><td class="num">${best}</td><td>${esc(last.time)}</td></tr>`; }).join('');
+    return `<h3 class="res-h3">SAT Math жишиг тест</h3><p class="small">Сурагч бүрийн сүүлийн тестийн ойролцоо Math оноо (200–800), зөв хариултын тоо, 2-р модулийн хүндрэл. Доор нь SAT-ийн 4 хэсгийн ангийн дундаж.</p>
+      <div class="tbl-wrap"><table class="rtable"><thead><tr><th>Нэр</th><th>Бүлэг</th><th class="num">Тест</th><th class="num">Оноо</th><th class="num">Зөв</th><th>Module 2</th><th class="num">Хамгийн сайн</th><th>Огноо</th></tr></thead><tbody>${trs}</tbody></table></div>
+      <div class="ex-agg">${D.map(d => ({d, pc: agg[d].n ? Math.round(agg[d].ok / agg[d].n * 100) : 0})).sort((a, b) => a.pc - b.pc).map(x => `<div><span>${SATX.DOMS[x.d]}</span><div class="ex-sbar"><span style="width:${x.pc}%"></span></div><b class="${x.pc < 50 ? 'tbad' : ''}">${x.pc}%</b></div>`).join('')}</div>`;
+  }
   function classHTML(){
     const M = classModel(), g = R.cg;
     const head = `<div class="res-head"><h2 class="p-topic" style="font-size:24px;margin:0">Ангийн дүнгийн хүснэгт</h2>
         <div class="row"><button class="btn ghost" id="resReloadAll" type="button">Шинэчлэх</button><button class="btn ghost" id="resLogout" type="button">Гарах</button></div></div>${viewSwitch()}`;
-    if(!M.grades.length) return `<section class="paper res">${head}${examHTML() || '<p>Одоогоор илгээсэн дүн алга. Сурагчдад холбоос өгсний дараа энд гарна.</p>'}${R.archive ? '' : goalsHTML(M) + rosterHTML(M)}${reportsHTML()}${archiveHTML()}${diagHTML()}</section>`;
+    if(!M.grades.length) return `<section class="paper res">${head}${(examHTML() + satxHTML()) || '<p>Одоогоор илгээсэн дүн алга. Сурагчдад холбоос өгсний дараа энд гарна.</p>'}${R.archive ? '' : goalsHTML(M) + rosterHTML(M)}${reportsHTML()}${archiveHTML()}${diagHTML()}</section>`;
     const filt = `<div class="res-tools">
         <label class="f inline">Анги <select id="cGrade">${M.grades.map(x => `<option value="${x}" ${x === g ? 'selected' : ''}>${x}-р анги</option>`).join('')}</select></label>
         <label class="f inline">Бүлэг <select id="cGroup"><option value="">Бүх бүлэг</option>${M.groups.map(([k, v]) => `<option value="${esc(k)}" ${k === R.cgrp ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
@@ -410,15 +429,15 @@
         <div class="w-flags">${s.flags.map(f => flagBtn(f, g)).join('') || '<span class="small">Нийт дундаж 50%-иас бага</span>'}</div></li>`).join('')}</ul>`
       : '<p class="status ok">Анхаарах сурагч алга: бүх сурагч сүүлийн оролдлогодоо 50%-иас дээш авсан байна.</p>';
     const units = weakUnits.length ? `<h3 class="res-h3">Ангиараа давтах нэгж</h3><p class="small">Ангийн дундаж 60%-иас бага байгаа нэгж, түвшин.</p><div class="w-flags">${weakUnits.map(w => `<button class="flag low" type="button" data-replink="${g}|${w.c.ch}|${w.l}" title="Ангид өгөх давтлагын холбоос хуулах">${esc(M.colName(w.c))} · ${LV[w.l]}: ${w.a.avg}% (${w.a.n} сурагч)</button>`).join('')}</div>` : '';
-    const seg = (a, l) => !a || !a.length ? `<i class="lv e" title="${LV[l]}: өгөөгүй"></i>` : `<i class="lv ${pctCls(a[a.length - 1])}" title="${LV[l]}: ${a.join('% → ')}%${a.length > 1 ? ' (' + a.length + ' оролдлого)' : ''}">${a[a.length - 1]}</i>`;
-    const th = M.cols.map(c => `<th class="mx-h" title="${esc(M.colName(c))}"><span>${esc(M.colName(c))}</span><em><i>М</i><i>Ч</i><i>Х</i></em></th>`).join('');
+    const seg = (a, l) => !a || !a.length ? `<i class="lv e" title="${LVN(l)}: өгөөгүй"></i>` : `<i class="lv ${pctCls(a[a.length - 1])}" title="${LVN(l)}: ${a.join('% → ')}%${a.length > 1 ? ' (' + a.length + ' оролдлого)' : ''}">${a[a.length - 1]}</i>`;
+    const th = M.cols.map(c => `<th class="mx-h" title="${esc(M.colName(c))}"><span>${esc(M.colName(c))}</span><em><i>М</i><i>Ч</i><i>Х</i>${LVS().length > 3 ? `<i>${R.cg >= 8 ? 'S' : 'E'}</i>` : ''}</em></th>`).join('');
     const body = M.students.map((s, i) => `<tr><td class="num">${i + 1}</td><td class="mx-name"><button class="linkbtn" data-stu="${esc(s.k)}">${esc(s.name)}</button>${s.flags.length ? ' <span class="dot-flag" title="Анхаарах">●</span>' : ''}</td><td>${esc(s.group)}</td>
-      ${M.cols.map(c => `<td class="mx">${[1, 2, 3].map(l => seg(s.cells[c.ch] && s.cells[c.ch][l], l)).join('')}</td>`).join('')}<td class="num ${s.avg == null ? '' : s.avg < 50 ? 'bad' : s.avg >= 80 ? 'ok' : ''}">${s.avg == null ? '—' : s.avg + '%'}</td></tr>`).join('');
-    const foot = `<tr class="mx-foot"><td></td><td class="mx-name">Ангийн дундаж</td><td></td>${M.colAvg.map(a => `<td class="mx">${a.map((x, j) => x ? `<i class="lv ${pctCls(x.avg)}" title="${LV[j + 1]}: ${x.avg}%, ${x.n} сурагч">${x.avg}</i>` : `<i class="lv e"></i>`).join('')}</td>`).join('')}<td class="num">${avgAll}%</td></tr>`;
-    const legend = `<p class="small mx-legend">Нүд бүрт гурван түвшин: <b>М</b> — мэдлэг, ойлголт, <b>Ч</b> — чадвар, <b>Х</b> — хэрэглээ. Тоо нь сүүлийн оролдлогын хувь. <i class="lv g">80</i> 80%-иас дээш <i class="lv m">65</i> 50–79% <i class="lv b">40</i> 50%-иас доош <i class="lv e"></i> өгөөгүй. Нүдэн дээр хулганаар заахад бүх оролдлого харагдана.</p>`;
+      ${M.cols.map(c => `<td class="mx">${LVS().map(l => seg(s.cells[c.ch] && s.cells[c.ch][l], l)).join('')}</td>`).join('')}<td class="num ${s.avg == null ? '' : s.avg < 50 ? 'bad' : s.avg >= 80 ? 'ok' : ''}">${s.avg == null ? '—' : s.avg + '%'}</td></tr>`).join('');
+    const foot = `<tr class="mx-foot"><td></td><td class="mx-name">Ангийн дундаж</td><td></td>${M.colAvg.map(a => `<td class="mx">${a.map((x, j) => x ? `<i class="lv ${pctCls(x.avg)}" title="${LV[LVS()[j]]}: ${x.avg}%, ${x.n} сурагч">${x.avg}</i>` : `<i class="lv e"></i>`).join('')}</td>`).join('')}<td class="num">${avgAll}%</td></tr>`;
+    const legend = `<p class="small mx-legend">Нүд бүрт гурван түвшин: <b>М</b> — мэдлэг, ойлголт, <b>Ч</b> — чадвар, <b>Х</b> — хэрэглээ${LVS().length > 3 ? (R.cg >= 8 ? ', <b>S</b> — SAT шат (англи хэлээр)' : ', <b>E</b> — Англи гүүр (англи хэлээр)') : ''}. Тоо нь сүүлийн оролдлогын хувь. <i class="lv g">80</i> 80%-иас дээш <i class="lv m">65</i> 50–79% <i class="lv b">40</i> 50%-иас доош <i class="lv e"></i> өгөөгүй. Нүдэн дээр хулганаар заахад бүх оролдлого харагдана.</p>`;
     const grpNames = R.cgrp ? M.groups.filter(([k]) => k === R.cgrp).map(x => x[1]) : (R.rosters || []).map(r => r.label).filter(l => M.groups.some(([k]) => k === NK(l)));
     const miss = missingHTML(M.rs, grpNames, 'Нэг ч ажил илгээгээгүй сурагчид');
-    return `<section class="paper res">${head}${filt}${stats}${miss}${watch}${units}${examHTML()}
+    return `<section class="paper res">${head}${filt}${stats}${miss}${watch}${units}${examHTML()}${satxHTML()}
       ${weeklyHTML(M.rs)}
       <h3 class="res-h3">Сурагч × нэгж</h3>${legend}
       <div class="tbl-wrap"><table class="rtable mxt"><thead><tr><th class="num">№</th><th class="mx-name">Нэр</th><th>Бүлэг</th>${th}<th class="num">Дундаж</th></tr></thead><tbody>${body}${foot}</tbody></table></div>
@@ -453,7 +472,7 @@
     if(!s){ R.stu = ''; return classHTML(); }
     const list = s.list.slice().reverse().map(r => `<tr><td>${esc(r.time)}</td><td>${Mx(esc(r.topic))}</td><td>${esc(LV[r.u.l])}</td><td class="num"><b>${r.score}</b>/${r.total}</td><td class="num ${r.pct < 50 ? 'bad' : r.pct >= 80 ? 'ok' : ''}">${r.pct}%</td>
       <td class="dots">${[...String(r.detail)].map((c, k) => `<i class="${c === '1' ? 'y' : c === '0' ? 'n' : 'e'}" title="${k + 1}"></i>`).join('')}</td><td><button class="linkbtn" data-rcode="${esc(r.code)}">${esc(r.code)}</button></td></tr>`).join('');
-    const prog = M.cols.filter(c => s.cells[c.ch]).map(c => `<div class="sp-row"><span>${esc(M.colName(c))}</span>${[1, 2, 3].map(l => { const a = s.cells[c.ch][l]; return `<span class="sp-lv">${LV[l]}: ${a.length ? a.map(v => `<i class="lv ${pctCls(v)}">${v}</i>`).join('<b class="arr">→</b>') : '<i class="lv e"></i>'}</span>`; }).join('')}</div>`).join('');
+    const prog = M.cols.filter(c => s.cells[c.ch]).map(c => `<div class="sp-row"><span>${esc(M.colName(c))}</span>${LVS().map(l => { const a = s.cells[c.ch][l]; return `<span class="sp-lv">${LVN(l)}: ${a.length ? a.map(v => `<i class="lv ${pctCls(v)}">${v}</i>`).join('<b class="arr">→</b>') : '<i class="lv e"></i>'}</span>`; }).join('')}</div>`).join('');
     return `<section class="paper res"><div class="res-head"><div><button class="linkbtn" id="stuBack" type="button">← Ангийн хүснэгт</button>
       <h2 class="p-topic" style="font-size:24px;margin:4px 0 0">${esc(s.name)}</h2><div class="small">${esc(s.group)} · ${R.cg}-р анги · ${s.list.length} ажил${s.avg != null ? ' · дундаж ' + s.avg + '%' : ''}</div></div>
       <div class="row"><button class="btn" id="stuReport" type="button">Эцэг эхэд тайлан (PDF)</button></div></div>
@@ -466,8 +485,8 @@
   function classCsv(){
     const M = classModel();
     const q = v => { const s = String(v ?? ''); return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-    const head = ['Нэр', 'Бүлэг', ...M.cols.flatMap(c => [1, 2, 3].map(l => M.colName(c) + ' — ' + LV[l])), 'Дундаж', 'Анхаарах'];
-    const lines = [head, ...M.students.map(s => [s.name, s.group, ...M.cols.flatMap(c => [1, 2, 3].map(l => { const a = s.cells[c.ch] && s.cells[c.ch][l]; return a && a.length ? a[a.length - 1] : ''; })), s.avg ?? '', s.flags.map(f => f.text).join('; ')])].map(a => a.map(q).join(','));
+    const head = ['Нэр', 'Бүлэг', ...M.cols.flatMap(c => LVS().map(l => M.colName(c) + ' — ' + LVN(l))), 'Дундаж', 'Анхаарах'];
+    const lines = [head, ...M.students.map(s => [s.name, s.group, ...M.cols.flatMap(c => LVS().map(l => { const a = s.cells[c.ch] && s.cells[c.ch][l]; return a && a.length ? a[a.length - 1] : ''; })), s.avg ?? '', s.flags.map(f => f.text).join('; ')])].map(a => a.map(q).join(','));
     const blob = new Blob(['\ufeff' + lines.join('\r\n')], {type: 'text/csv;charset=utf-8'});
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `angi-${R.cg}${R.cgrp ? '-' + R.cgrp : ''}.csv`; document.body.appendChild(a); a.click(); a.remove();
   }

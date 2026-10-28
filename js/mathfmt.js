@@ -215,6 +215,7 @@
     return '';
   }
   const cache = new Map();
-  root.M = html => { const k = String(html ?? ''); if(!cache.has(k)){ if(cache.size > 5000) cache.clear(); cache.set(k, convert(k)); } return cache.get(k); };
+  /* ⟦…⟧: англи бичвэрт зөвхөн хаалтан доторх хэсгийг томьёо болгоно */
+  root.M = html => { const k = String(html ?? ''); if(!cache.has(k)){ if(cache.size > 5000) cache.clear(); cache.set(k, k.includes('⟦') ? k.split(/[⟦⟧]/).map((x, i) => i % 2 ? convert(x) : x).join('') : convert(k)); } return cache.get(k); };
   root.MATHFMT = { convert, tex, tokens };
 })(typeof window !== 'undefined' ? window : globalThis);

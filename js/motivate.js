@@ -52,6 +52,7 @@
     ['daily5', '☀️', 'Өдрийн баатар', 'Өдрийн бодлогыг 5 удаа зөв бодсон', c => Object.values(c.p.daily).filter(v => v >= 100).length >= 5],
     ['traveler', '🐎', 'Аялагч', 'Монгол аяллын 5 дахь буудал болох Хөвсгөл нууранд хүрсэн', c => station(c.stars) >= 4],
     ['speed', '⚡', 'Хурдан бодогч', 'Хурдан тооцоонд 60 секундэд 20 жишээ зөв бодсон', c => c.p.drill >= 20],
+    ['satb', '🌍', 'SAT гүүр', '3 сэдэвт SAT шатыг (англи хэлээр) давсан', c => Object.values(c.sm).filter(lv => lv && lv[5] >= PASS).length >= 3],
     ['review', '📒', 'Давтлагын баатар', 'Алдааны дэвтрээс 3 сэдвийг давтлагаар бататгаж хассан', c => c.p.rv >= 3],
     ['master', '🏆', 'Мастер', '30 од цуглуулсан', c => c.stars >= 30]
   ];
@@ -173,7 +174,7 @@
     const star = (on, l) => `<span class="st ${on ? 'on' : ''}" title="${LV[l]}${on ? ': давсан' : ''}">★</span>`;
     const map = Object.keys(byCh).map((ch, ci) => {
       const rows = byCh[ch].map(([t, ti]) => { const lv = sm[g + '-' + ti] || {}, n = nStars(lv);
-        return `<li class="${n ? '' : 'none'}"><span class="tp">${Mx(esc(t.title))}</span><span class="sts">${[1, 2, 3].map(l => star(lv[l] >= PASS, l)).join('')}</span>${n === 3 ? `<button class="btn ghost cert-btn" type="button" data-cert="${g}-${ti}">Дурсамж татах</button>` : ''}</li>`; }).join('');
+        return `<li class="${n ? '' : 'none'}"><span class="tp">${Mx(esc(t.title))}</span><span class="sts">${[1, 2, 3].map(l => star(lv[l] >= PASS, l)).join('')}${lv[5] >= PASS ? '<span class="sat-pill" title="SAT шатыг давсан">SAT</span>' : ''}</span>${n === 3 ? `<button class="btn ghost cert-btn" type="button" data-cert="${g}-${ti}">Дурсамж татах</button>` : ''}</li>`; }).join('');
       const got = byCh[ch].reduce((s, [t, ti]) => s + nStars(sm[g + '-' + ti]), 0), open = got > 0 || byCh[ch].some(([t, ti]) => ti === S.topic);
       return `<details class="smap"${open ? ' open' : ''}><summary><span>${chs[ch] ? (ci + 1) + '. ' + esc(chs[ch]) : 'Сэдвүүд'}</span><span class="smap-n">${got} / ${byCh[ch].length * 3} ★</span></summary><ul>${rows}</ul></details>`;
     }).join('');

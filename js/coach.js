@@ -24,7 +24,7 @@
   function lastSeen(){ const h = (rj('ws_prof')[who()] || {}).hist || [], m = {}; h.forEach((x, i) => { const k = String(x.c).split('-').slice(0, 2).join('-'); m[k] = i + 1; }); return m; }
   const tagOf = () => (typeof linkTag === 'function' ? linkTag() : '');
   const rnd = () => 1000 + Math.floor(Math.random() * 98000);
-  const sheetURL = (g, t, l) => `${location.pathname}${location.search}#s-${g}-${t}-${l}-${l === 1 ? '5+3' : l === 2 ? '2+5' : '0+5'}-${rnd()}${tagOf()}`;
+  const sheetURL = (g, t, l) => `${location.pathname}${location.search}#s-${g}-${t}-${l}-${l === 1 ? '5+3' : l === 2 ? '2+5' : l === 5 ? '4+2' : '0+5'}-${rnd()}${tagOf()}`;
   const adaptURL = (g, t, l) => `${location.pathname}${location.search}#a-${g}-${t}${l ? '-' + l : ''}${tagOf()}`;
   const homeURL = g => `${location.pathname}${location.search}#me-${g}${tagOf()}`;
 
@@ -47,6 +47,9 @@
       const [kg, kt] = k.split('-').map(Number), l = firstOpen(sm[k]), b = sm[k][l];
       add({kind: 'continue', g: kg, t: kt, l, why: b != null ? `«${LV[l]}» түвшинд хамгийн сайн дүн ${b}%. ${PASS}%-д хүрвэл дараагийн түвшин нээгдэнэ.` : `«${LV[l]}» түвшин дараагийн алхам тань.`});
     });
+    // 3б. Гурван түвшнийг давсан сэдвийн SAT шат (8-р ангиас)
+    if(g >= 6 && W.hasSat) Object.keys(sm).filter(k => +k.split('-')[0] === g && !firstOpen(sm[k]) && !(sm[k][5] >= PASS)).sort((a, b) => (seenAt[b] || 0) - (seenAt[a] || 0)).slice(0, 1).forEach(k => {
+      const [kg, kt] = k.split('-').map(Number); if(W.hasSat(kg, kt)) add({kind: 'sat', g: kg, t: kt, l: 5, kname: W.SAT_NAME ? W.SAT_NAME(kg) : 'SAT шат', why: kg >= 8 ? `Гурван түвшнийг давсан. Дараагийн шат — ижил сэдэв англи хэлээр, ${W.SAT_BAND ? W.SAT_BAND(kg) : 'SAT'}-ийн хэлбэрээр.` : 'Гурван түвшнийг давсан. Дараагийн шат — ижил сэдвийн богино бодлого англи хэлээр, монгол тусламжтай.'}); });
     // 4. Шинэ сэдэв (сурах бичгийн дарааллаар, суурь сэдэв нь эзэмшигдсэнийг түрүүлж)
     const fresh = W.topicsOf(g).map((t, i) => LOC[t.id]).filter(x => !sm[x.g + '-' + x.t]);
     const ready = fresh.filter(x => (PRE[x.id] || []).every(id => { const p = LOC[id]; return !p || p.g < g || (sm[p.g + '-' + p.t] || {})[1] >= PASS; }));
@@ -70,7 +73,7 @@
   function loadWho(){ try { const v = JSON.parse(localStorage.getItem('ws_student') || '{}'); if(!$('stName').value) $('stName').value = v.n || ''; if(!$('stClass').value) $('stClass').value = v.c || ''; } catch(e){} }
 
   /* ---------- Сурагчийн нүүр: Миний сурах зам ---------- */
-  const KIND = {review: 'Давтлага', base: 'Суурь сэдэв', continue: 'Үргэлжлүүлэх', next: 'Шинэ сэдэв'};
+  const KIND = {review: 'Давтлага', base: 'Суурь сэдэв', continue: 'Үргэлжлүүлэх', next: 'Шинэ сэдэв', sat: 'SAT шат'};
   let homeG = 9;
   function home(g){
     homeG = W.GRADES.includes(+g) ? +g : homeG; S.grade = homeG; try { localStorage.setItem('ws_megrade', String(homeG)); } catch(e){}
@@ -83,8 +86,8 @@
       <div class="co-grades" role="group" aria-label="Анги">${W.GRADES.map(x => `<button type="button" class="chip${x === homeG ? ' on' : ''}" data-cog="${x}" aria-pressed="${x === homeG}">${x}-р анги</button>`).join('')}</div>
       <h3>Өнөөдрийн зөвлөмж</h3>
       <p class="small">Таны бодсон ажлын дүн, алдааны дэвтэр, сэдвүүдийн уялдаанд тулгуурлан сонгосон дараагийн алхам.${$('stName').value.trim() ? '' : ' Нэрээ бичвэл ахиц тань тусдаа хадгалагдана.'}</p>
-      <ol class="co-recs">${R0.map(r => `<li class="co-card k-${r.kind}"><span class="co-kind">${KIND[r.kind]}</span><b class="co-t">${Mx(esc(r.title))}</b><small>${r.g}-р анги · ${LV[r.l]}</small><p>${Mx(esc(r.why))}</p>
-        <div class="row"><a class="btn" href="${adaptURL(r.g, r.t, r.l)}" data-go>Дасан зохицох дасгал</a><a class="btn ghost" href="${sheetURL(r.g, r.t, r.l)}" data-go>Ажлын хуудас</a></div></li>`).join('')}</ol>
+      <ol class="co-recs">${R0.map(r => `<li class="co-card k-${r.kind}"><span class="co-kind">${r.kname || KIND[r.kind]}</span><b class="co-t">${Mx(esc(r.title))}</b><small>${r.g}-р анги · ${r.kname || LV[r.l]}</small><p>${Mx(esc(r.why))}</p>
+        <div class="row">${r.l === 5 ? `<a class="btn" href="${sheetURL(r.g, r.t, 5)}" data-go>${r.g >= 8 ? 'SAT бодлого бодох' : 'Англи бодлого бодох'}</a>` : `<a class="btn" href="${adaptURL(r.g, r.t, r.l)}" data-go>Дасан зохицох дасгал</a><a class="btn ghost" href="${sheetURL(r.g, r.t, r.l)}" data-go>Ажлын хуудас</a>`}</div></li>`).join('')}</ol>
       <h3>Өөрөө сэдэв сонгох</h3>
       <form class="co-pick" id="coPick"><select id="coTopic" aria-label="Сэдэв">${sel}</select><button class="btn" type="submit">Дасгал эхлэх</button></form>
       <p class="small">Дасан зохицох дасгалд бодлого нэг нэгээр гарна. 3 дараалан зөв бодвол дараагийн түвшинд, 2 дараалан алдвал өмнөх түвшинд шилжинэ.</p>

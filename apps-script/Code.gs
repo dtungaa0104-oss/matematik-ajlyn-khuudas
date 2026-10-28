@@ -15,7 +15,7 @@ const TEACHER_KEY = 'ЭНИЙГ-СОЛИНО-УУ';   // Багшийн нууц
 const SHEET_NAME = 'Дүн';
 const HEAD = ['Илгээсэн огноо', 'Код', 'Анги', 'Сэдэв', 'Түвшин', 'Хэлбэр', 'Нэр', 'Бүлэг',
   'Оноо', 'Нийт', 'Хувь (%)', 'Хугацаа (мин)', 'Алдсан даалгавар', 'Даалгавар бүрийн дүн', 'Сурагчийн хариу', 'Оролдлого'];
-const CODE_RE = /^(\d{1,2}-\d{1,3}-[1234]-(\d{1,2}-[012]|\d{1,2}\+\d{1,2}|\d{1,2}\.\d{1,2}\.\d{1,2})-\d{1,6}|E-\d{1,6})$/;  // + ЭЕШ сорил: E-54321  // + нэгжийн шалгалт: 9-104-4-4.4.2-2024  // хуучин: 9-5-2-10-2-2024, шинэ: 9-5-2-10+5-2024
+const CODE_RE = /^(\d{1,2}-\d{1,3}-[12345]-(\d{1,2}-[012]|\d{1,2}\+\d{1,2}|\d{1,2}\.\d{1,2}\.\d{1,2})-\d{1,6}|E-\d{1,6}|S-\d{1,6})$/;  // + ЭЕШ сорил: E-54321, SAT Math жишиг тест: S-54321, SAT шат: 9-12-5-4+2-2024  // + нэгжийн шалгалт: 9-104-4-4.4.2-2024  // хуучин: 9-5-2-10-2-2024, шинэ: 9-5-2-10+5-2024
 
 /** Хүснэгтийг олох: Sheets-ээс нээсэн бол тэр хүснэгт, script.google.com-оос шууд үүсгэсэн бол шинэ хүснэгтийг автоматаар үүсгэнэ */
 function ss_() {
@@ -81,7 +81,7 @@ function doPost(e) {
     if (!CODE_RE.test(code)) return out_({ ok: false, error: 'code' });
     const name = clean_(d.name, 60), group = clean_(d.group, 20);
     if (!name) return out_({ ok: false, error: 'name' });
-    const total = Math.max(1, Math.min(code.indexOf('E-') === 0 ? 100 : 40, parseInt(d.total, 10) || 0));
+    const total = Math.max(1, Math.min(code.indexOf('E-') === 0 ? 100 : code.indexOf('S-') === 0 ? 800 : 40, parseInt(d.total, 10) || 0));
     const score = Math.max(0, Math.min(total, parseInt(d.score, 10) || 0));
 
     const sh = sheet_();
@@ -95,7 +95,7 @@ function doPost(e) {
     sh.appendRow([
       new Date(), "'" + code, Number(d.grade) || '', clean_(d.topic, 120), clean_(d.level, 20), clean_(d.form, 20),
       name, group, score, total, Math.round(score / total * 100),
-      Math.round((Number(d.minutes) || 0) * 10) / 10, clean_(d.missed, 300), "'" + String(d.detail || '').replace(/[^01-]/g, '').slice(0, 60), clean_(d.answers, 1500), attempt
+      Math.round((Number(d.minutes) || 0) * 10) / 10, clean_(d.missed, 400), "'" + String(d.detail || '').replace(/[^01-]/g, '').slice(0, 60), clean_(d.answers, 1500), attempt
     ]);
     return out_({ ok: true, attempt: attempt });
   } catch (err) {
@@ -197,7 +197,7 @@ function listGoals_() { const G = goals_(); return Object.keys(G).map(k => ({ ke
 /** Багшийн «Дүн» хэсэгт өгөгдөл өгөх (нууц үгтэй) */
 function doGet(e) {
   const p = e.parameter || {};
-  if (p.action === 'ping') return out_({ ok: true, app: 'ajlyn-khuudas', v: 9 });
+  if (p.action === 'ping') return out_({ ok: true, app: 'ajlyn-khuudas', v: 11 });
   // Ангийн хамтын зорилго: сурагчид зөвхөн бүлгийнхээ нийт тоог харна (нэр харагдахгүй)
   // Ангийн нэрсийн жагсаалт: сурагч нэрээ жагсаалтаас сонгоно
   if (p.action === 'roster') { const r = getRoster_(p.group || ''); return out_({ ok: true, label: r ? r.label : '', names: r ? r.names : null }); }

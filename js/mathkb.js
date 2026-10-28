@@ -5,8 +5,8 @@
   if(typeof S === 'undefined') return;
   const coarse = () => !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
   const KEYS = [['−', '-', 'Хасах тэмдэг'], ['/', '/', 'Бутархайн зураас'], ['√', '√', 'Квадрат язгуур'], ['²', '²', 'Квадрат зэрэг'], ['^', '^', 'Зэрэг'], ['(', '(', 'Нээх хаалт'], [')', ')', 'Хаах хаалт'], [';', '; ', 'Хариуг тусгаарлах'], ['π', 'π', 'Пи']];
-  const isTarget = el => el && el.tagName === 'INPUT' && (el.matches('.ws-item input[data-i], input.ex-ans') || el.id === 'coIn') && !el.disabled;
-  const itemOf = el => el.id === 'coIn' ? (window.COACH && COACH.state.cur) : el.dataset.exin != null ? (window.EXAM && EXAM.item(+el.dataset.exin)) : S.items[Number(el.dataset.i)];
+  const isTarget = el => el && el.tagName === 'INPUT' && (el.matches('.ws-item input[data-i], input.ex-ans') || el.id === 'coIn' || el.id === 'sxIn') && !el.disabled;
+  const itemOf = el => el.id === 'sxIn' ? (window.SATX && SATX.item(SATX.cur)) : el.id === 'coIn' ? (window.COACH && COACH.state.cur) : el.dataset.exin != null ? (window.EXAM && EXAM.item(+el.dataset.exin)) : S.items[Number(el.dataset.i)];
   let bar = null, cur = null, hideT = null;
   function make(){
     bar = document.createElement('div'); bar.className = 'mkb'; bar.setAttribute('role', 'toolbar'); bar.setAttribute('aria-label', 'Математик тэмдэгт оруулах');
@@ -27,7 +27,7 @@
   }
   function preview(){
     if(!bar || !cur) return; const v = cur.value.trim(), pv = bar.querySelector('.mkb-prev');
-    if(!v || !/[\/√^²³]/.test(v)){ pv.innerHTML = ''; pv.hidden = true; return; }
+    if(!v || !/[\/√^²³]/.test(v) || cur.id === 'sxIn'){ pv.innerHTML = ''; pv.hidden = true; return; }   // SAT тестэд өөрийн «Answer preview» бий
     pv.hidden = false; pv.innerHTML = 'Таны хариу: ' + toTex(v);
   }
   /* Бичсэн хариуг KaTeX-ээр зурах: 3/4 → бутархай, √2 → язгуур, 2^3, 5² → зэрэг */
