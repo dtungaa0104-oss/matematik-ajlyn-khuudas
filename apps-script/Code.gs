@@ -63,6 +63,10 @@ function doPost(e) {
   try {
     lock.waitLock(20000);
     const d = JSON.parse(e.postData.contents);
+    if (d.action === 'archive') {                         // багш: улирал архивлах
+      if (d.key !== TEACHER_KEY) return out_({ ok: false, error: 'key' });
+      return out_(archive_(d.name));
+    }
     if (d.action === 'setroster') {                       // багш: ангийн нэрсийн жагсаалт хадгалах
       if (d.key !== TEACHER_KEY) return out_({ ok: false, error: 'key' });
       const k = rosterKey_(d.group || ''); if (!norm_(d.group || '')) return out_({ ok: false, error: 'group' });
@@ -99,6 +103,36 @@ function doPost(e) {
   }
 }
 
+/** Хуудасны дүнгийн мөрүүдийг сайтад өгөх хэлбэрт оруулна */
+function rowsOf_(sh) {
+  const last = sh.getLastRow(), tz = Session.getScriptTimeZone();
+  const values = last > 1 ? sh.getRange(2, 1, last - 1, HEAD.length).getValues() : [];
+  return values.filter(r => r[1] !== '').map(r => ({
+    time: r[0] instanceof Date ? Utilities.formatDate(r[0], tz, 'yyyy.MM.dd HH:mm') : String(r[0]),
+    code: String(r[1]), grade: r[2], topic: r[3], level: r[4], form: r[5], name: String(r[6]), group: String(r[7]),
+    score: Number(r[8]), total: Number(r[9]), pct: Number(r[10]), minutes: Number(r[11]),
+    missed: String(r[12]), detail: String(r[13]), answers: String(r[14]), attempt: Number(r[15])
+  }));
+}
+
+/** Улирал архивлах: «Дүн» хуудсын бүх мөрийг «Архив: нэр» хуудас руу хуулж, «Дүн»-г хоосолно */
+const ARCH_PREFIX = 'Архив: ';
+function listArchives_() {
+  return ss_().getSheets().filter(x => x.getName().indexOf(ARCH_PREFIX) === 0)
+    .map(x => ({ name: x.getName().slice(ARCH_PREFIX.length), rows: Math.max(0, x.getLastRow() - 1) }));
+}
+function archive_(name) {
+  const ss = ss_(), sh = sheet_(), last = sh.getLastRow();
+  if (last < 2) return { ok: false, error: 'empty' };
+  const base = clean_(name || '', 80).replace(/[\[\]*?:\/\\]/g, ' ').trim() || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  let full = ARCH_PREFIX + base, k = 2;
+  while (ss.getSheetByName(full)) full = ARCH_PREFIX + base + ' (' + (k++) + ')';
+  sh.copyTo(ss).setName(full);
+  if (last > 2) sh.deleteRows(3, last - 2);   // бүх мөрийг устгаж болохгүй тул нэгийг үлдээгээд цэвэрлэнэ
+  sh.getRange(2, 1, 1, HEAD.length).clearContent();
+  return { ok: true, moved: last - 1, name: full.slice(ARCH_PREFIX.length), archives: listArchives_() };
+}
+
 /** Ангийн нэрсийн жагсаалт (бүлэг бүрт Script Properties-д тусдаа) */
 function rosterKey_(g) { return 'ROSTER_' + Utilities.base64EncodeWebSafe(norm_(g)).slice(0, 200); }
 function getRoster_(g) { try { return JSON.parse(PropertiesService.getScriptProperties().getProperty(rosterKey_(g)) || 'null'); } catch (e) { return null; } }
@@ -122,7 +156,7 @@ function listGoals_() { const G = goals_(); return Object.keys(G).map(k => ({ ke
 /** Багшийн «Дүн» хэсэгт өгөгдөл өгөх (нууц үгтэй) */
 function doGet(e) {
   const p = e.parameter || {};
-  if (p.action === 'ping') return out_({ ok: true, app: 'ajlyn-khuudas', v: 5 });
+  if (p.action === 'ping') return out_({ ok: true, app: 'ajlyn-khuudas', v: 6 });
   // Ангийн хамтын зорилго: сурагчид зөвхөн бүлгийнхээ нийт тоог харна (нэр харагдахгүй)
   // Ангийн нэрсийн жагсаалт: сурагч нэрээ жагсаалтаас сонгоно
   if (p.action === 'roster') { const r = getRoster_(p.group || ''); return out_({ ok: true, label: r ? r.label : '', names: r ? r.names : null }); }
@@ -135,16 +169,8 @@ function doGet(e) {
     return out_({ ok: true, goal: { label: G.label, title: G.title, target: G.target, done: Number(done), start: G.start } });
   }
   if (p.key !== TEACHER_KEY) return out_({ ok: false, error: 'key' });
-  const sh = sheet_();
-  const last = sh.getLastRow();
-  const values = last > 1 ? sh.getRange(2, 1, last - 1, HEAD.length).getValues() : [];
-  const tz = Session.getScriptTimeZone();
-  const rows = values.map(r => ({
-    time: r[0] instanceof Date ? Utilities.formatDate(r[0], tz, 'yyyy.MM.dd HH:mm') : String(r[0]),
-    code: String(r[1]), grade: r[2], topic: r[3], level: r[4], form: r[5], name: String(r[6]), group: String(r[7]),
-    score: Number(r[8]), total: Number(r[9]), pct: Number(r[10]), minutes: Number(r[11]),
-    missed: String(r[12]), detail: String(r[13]), answers: String(r[14]), attempt: Number(r[15])
-  }));
+  if (p.action === 'archives') return out_({ ok: true, archives: listArchives_() });
+  if (p.action === 'archived') { const ash = ss_().getSheetByName(ARCH_PREFIX + (p.name || '')); return ash ? out_({ ok: true, rows: rowsOf_(ash) }) : out_({ ok: false, error: 'name' }); }
   if (p.action === 'goals') return out_({ ok: true, goals: listGoals_() });
   if (p.action === 'rosters') return out_({ ok: true, rosters: listRosters_() });
   if (p.action === 'setgoal') {
@@ -157,6 +183,7 @@ function doGet(e) {
     try { CacheService.getScriptCache().remove('goal_' + Utilities.base64EncodeWebSafe(key).slice(0, 200)); } catch (e) {}
     return out_({ ok: true, goals: listGoals_() });
   }
+  const rows = rowsOf_(sheet_());
   if (p.code) return out_({ ok: true, rows: rows.filter(r => r.code === p.code) });
   // Код бүрийн товч жагсаалт
   const map = {};

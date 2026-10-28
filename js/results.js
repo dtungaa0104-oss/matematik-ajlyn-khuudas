@@ -39,14 +39,16 @@
   const setOutbox = a => { try { localStorage.setItem(OUT, JSON.stringify(a)); } catch(e){} };
   function queue(data){ const a = outbox(); if(!a.some(x => x.code === data.code && x.name === data.name && x.answers === data.answers)) a.push(data); setOutbox(a); }
   let flushing = false;
-  window.flushOutbox = async function(){
+  /* Нэг төхөөрөмж дээр хэд хэдэн цонх нээлттэй үед давхар илгээхээс сэргийлж Web Locks ашиглана */
+  window.flushOutbox = () => navigator.locks && navigator.locks.request ? navigator.locks.request('ws_outbox', () => flushNow()) : flushNow();
+  async function flushNow(){
     const url = URL0(), a = outbox(); if(flushing || !url || !a.length || navigator.onLine === false) return;
     flushing = true; setOutbox([]);   // давхар илгээхээс сэргийлж дарааллыг түр хоосолно
     const left = [];
     for(const d of a){ try { const r = await fetch(url, {method: 'POST', body: JSON.stringify(d)}); const j = await r.json(); if(!(j && (j.ok || j.error === 'code' || j.error === 'name'))) left.push(d); } catch(e){ left.push(d); } }
     setOutbox([...left, ...outbox()]); flushing = false;
     if(left.length < a.length && S.sendState && S.sendState.queued){ setSend({text: 'Хадгалсан дүн багшид илгээгдлээ ✓', cls: 'ok'}); }
-  };
+  }
   window.addEventListener('online', () => window.flushOutbox());
   setTimeout(() => window.flushOutbox(), 1500);
   window.submitResult = async function(){
@@ -79,7 +81,7 @@
     try { res = await fetch(url + '?action=ping'); text = await res.text(); }
     catch(e){ return {ok: false, msg: 'Скрипт хандалт зөвшөөрөхгүй байна. Apps Script → Управление развертываниями → ✏️ → «У кого есть доступ: Все» (Anyone) болгож, «Версия: Новая версия» сонгоод «Развернуть» дарна уу. Сургуулийн (Workspace) бүртгэлд «Все» сонголт байхгүй бол хувийн Gmail бүртгэлээр скриптээ үүсгэнэ үү.'}; }
     let j = null; try { j = JSON.parse(text); } catch(e){}
-    if(j && j.ok && j.app === 'ajlyn-khuudas') return (j.v || 1) < 2 ? {ok: false, msg: 'Холболт хэвийн, гэхдээ скрипт хуучин хувилбартай: «10+5» хэлбэрийн шинэ кодтой дүнг хүлээж авахгүй. apps-script/Code.gs-ийн шинэ кодыг хуулж тавиад «Управление развертываниями → ✏️ → Новая версия → Развернуть» хийнэ үү.'} : (j.v || 1) < 5 ? {ok: true, msg: 'Холболт хэвийн ✓ Дүн цуглуулалт ажиллаж байна. «Ангийн хамтын зорилго», «Ангийн нэрсийн жагсаалт»-ыг ашиглах бол apps-script/Code.gs-ийн шинэ кодыг (v5) хуулж тавиад «Новая версия» болгон дахин байршуулна уу.'} : {ok: true, msg: 'Холболт хэвийн ✓ Скрипт ажиллаж байна (v5).'};
+    if(j && j.ok && j.app === 'ajlyn-khuudas') return (j.v || 1) < 2 ? {ok: false, msg: 'Холболт хэвийн, гэхдээ скрипт хуучин хувилбартай: «10+5» хэлбэрийн шинэ кодтой дүнг хүлээж авахгүй. apps-script/Code.gs-ийн шинэ кодыг хуулж тавиад «Управление развертываниями → ✏️ → Новая версия → Развернуть» хийнэ үү.'} : (j.v || 1) < 6 ? {ok: true, msg: `Холболт хэвийн ✓ Дүн цуглуулалт ажиллаж байна (v${j.v || 1}). Ангийн хамтын зорилго, нэрсийн жагсаалт, улирал архивлах боломжийг ашиглах бол apps-script/Code.gs-ийн шинэ кодыг (v6) хуулж тавиад «Новая версия» болгон дахин байршуулна уу.`} : {ok: true, msg: 'Холболт хэвийн ✓ Скрипт хамгийн сүүлийн хувилбартай (v6).'};
     if(j && j.ok === false && j.error === 'key') return {ok: false, msg: 'Скрипт хуучин хувилбартай байна. Code.gs-ийг шинэчлээд «Управление развертываниями → ✏️ → Новая версия → Развернуть» хийнэ үү.'};
     if(/<html/i.test(text || '')) return {ok: false, msg: 'Скриптээс HTML хуудас ирлээ (нэвтрэх хуудас эсвэл алдаа). Хандах эрх «Все» эсэх, Code.gs бүтэн хадгалагдсан эсэхийг шалгаад шинэ хувилбараар дахин байршуулна уу.'};
     return {ok: false, msg: 'Скриптийн хариу танигдсангүй (HTTP ' + (res && res.status) + ').'};
@@ -108,6 +110,7 @@
     R.loading = false; renderResults();
   }
   async function loadCode(c){
+    if(R.archive && R.all){ R.code = c; R.rows = R.all.filter(r => r.code === c); renderResults(); return; }
     R.code = c; R.loading = true; R.error = ''; R.rows = null; renderResults();
     try {
       const j = await api({key: R.key, code: c});
@@ -125,7 +128,7 @@
       else {
         try { localStorage.setItem('ws_tkey', R.key); } catch(e){}
         R.codes = j.codes || R.codes || [];
-        loadGoals(); loadRosters();
+        loadGoals(); loadRosters(); loadArchives(); R.archive = '';
         if(Array.isArray(j.rows)) R.all = j.rows;
         else {
           const q = R.codes.map(c => c.code), out = [], n = q.length; let done = 0;
@@ -139,6 +142,43 @@
   }
 
   window.resultsReset = () => { Object.assign(R, {codes: null, rows: null, all: null, code: '', stu: '', goals: null, goalsOld: false, rosters: null, rostersOld: false, note: '', diag: null}); if(S.mode === 'results') renderResults(); };
+
+  /* ---------- Улирал архивлах ---------- */
+  const codesFrom = rows => { const m = {}; rows.forEach(r => { const e = m[r.code] || (m[r.code] = {code: r.code, grade: r.grade, topic: r.topic, count: 0, sum: 0, last: ''}); e.count++; e.sum += r.pct; if(r.time > e.last) e.last = r.time; });
+    return Object.values(m).map(e => ({...e, avg: Math.round(e.sum / e.count)})).sort((a, b) => a.last < b.last ? 1 : -1); };
+  async function loadArchives(){
+    try { const j = await api({key: R.key, action: 'archives'}); R.archives = j && j.ok && Array.isArray(j.archives) ? j.archives : null; R.archivesOld = !(j && j.ok && Array.isArray(j.archives)); }
+    catch(e){ R.archives = null; R.archivesOld = true; }
+    if(!R.loading) renderResults();
+  }
+  async function openArchive(name){
+    R.loading = true; R.prog = ''; renderResults();
+    try { const j = await api({key: R.key, action: 'archived', name});
+      if(j && j.ok){ R.archive = name; R.all = j.rows; R.codes = codesFrom(j.rows); R.code = ''; R.rows = null; R.stu = ''; R.cg = 0; R.cgrp = ''; R.note = ''; }
+      else R.error = 'Архивыг нээж чадсангүй.';
+    } catch(e){ R.error = 'Хүснэгттэй холбогдож чадсангүй.'; }
+    R.loading = false; window.scrollTo(0, 0); renderResults();
+  }
+  async function doArchive(name){
+    R.archMsg = 'Архивлаж байна… Хуудсыг бүү хаагаарай.'; renderResults();
+    try { const j = await (await fetch(URL0(), {method: 'POST', body: JSON.stringify({action: 'archive', key: R.key, name})})).json();
+      if(j && j.ok){ R.archMsg = `${j.moved} мөр дүнг «${j.name}» архив руу шилжүүллээ. «Дүн» хуудас шинэ улиралд бэлэн боллоо.`; R.archives = j.archives; await loadAll(); return; }
+      R.archMsg = j && j.error === 'empty' ? 'Архивлах дүн алга байна.' : j && j.error === 'key' ? 'Нууц үг буруу байна.' : 'Архивлаж чадсангүй. Apps Script-ээ шинэчилсэн (v6) эсэхээ шалгана уу.';
+    } catch(e){ R.archMsg = 'Хүснэгттэй холбогдож чадсангүй.'; }
+    renderResults();
+  }
+  const archBanner = () => R.archive ? `<div class="arch-banner" role="status"><span>Архив <b>«${esc(R.archive)}»</b>-ыг харж байна. Энд зөвхөн харах боломжтой.</span><button class="btn ghost" type="button" id="archBack">Одоогийн дүн рүү буцах</button></div>` : '';
+  function archiveHTML(){
+    if(R.archive) return '';
+    if(R.archivesOld) return `<h3 class="res-h3">Улирал архивлах</h3><p class="small">Энэ боломжийг ашиглахын тулд apps-script/Code.gs-ийн шинэ кодыг (v6) хуулж тавиад «Новая версия» болгон дахин байршуулна уу.</p>`;
+    if(!R.archives) return '';
+    const d = new Date(), def = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} хүртэлх дүн`;
+    return `<h3 class="res-h3">Улирал архивлах</h3>
+      <p class="small">Улирал дуусахад одоогийн бүх дүнг «Архив: …» нэртэй тусдаа хуудас руу шилжүүлнэ. «Дүн» хуудас хоосорч, сайт дахин хурдан ачаалагдана. Архивласан дүн устахгүй: доорх жагсаалтаас хүссэн үедээ нээж харна, Google хүснэгтэд ч хэвээр байна. Архивлахын өмнө Excel (CSV) хуулбар татаж авахыг зөвлөж байна. Нэрсийн жагсаалт, хамтын зорилго хэвээр үлдэнэ.</p>
+      ${R.archives.length ? `<ul class="archives">${R.archives.map(a => `<li><b>${esc(a.name)}</b> · ${a.rows} мөр <button class="linkbtn small" type="button" data-archopen="${esc(a.name)}">Харах</button></li>`).join('')}</ul>` : ''}
+      <form class="goal-form" id="archForm"><label class="f" style="flex:2 1 260px">Архивын нэр<input id="archName" maxlength="80" value="${esc(def)}"></label><button class="btn ghost" type="submit">Одоогийн дүнг архивлах</button></form>
+      ${R.archMsg ? `<div class="status" role="status">${esc(R.archMsg)}</div>` : ''}`;
+  }
 
   /* ---------- Ангийн нэрсийн жагсаалт (багш) ---------- */
   async function loadRosters(){
@@ -311,7 +351,7 @@
     const M = classModel(), g = R.cg;
     const head = `<div class="res-head"><h2 class="p-topic" style="font-size:24px;margin:0">Ангийн дүнгийн хүснэгт</h2>
         <div class="row"><button class="btn ghost" id="resReloadAll" type="button">Шинэчлэх</button><button class="btn ghost" id="resLogout" type="button">Гарах</button></div></div>${viewSwitch()}`;
-    if(!M.grades.length) return `<section class="paper res">${head}<p>Одоогоор илгээсэн дүн алга. Сурагчдад холбоос өгсний дараа энд гарна.</p>${goalsHTML(M)}${rosterHTML(M)}${diagHTML()}</section>`;
+    if(!M.grades.length) return `<section class="paper res">${head}<p>Одоогоор илгээсэн дүн алга. Сурагчдад холбоос өгсний дараа энд гарна.</p>${R.archive ? '' : goalsHTML(M) + rosterHTML(M)}${archiveHTML()}${diagHTML()}</section>`;
     const filt = `<div class="res-tools">
         <label class="f inline">Анги <select id="cGrade">${M.grades.map(x => `<option value="${x}" ${x === g ? 'selected' : ''}>${x}-р анги</option>`).join('')}</select></label>
         <label class="f inline">Бүлэг <select id="cGroup"><option value="">Бүх бүлэг</option>${M.groups.map(([k, v]) => `<option value="${esc(k)}" ${k === R.cgrp ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
@@ -339,7 +379,7 @@
     return `<section class="paper res">${head}${filt}${stats}${miss}${watch}${units}
       <h3 class="res-h3">Сурагч × нэгж</h3>${legend}
       <div class="tbl-wrap"><table class="rtable mxt"><thead><tr><th class="num">№</th><th class="mx-name">Нэр</th><th>Бүлэг</th>${th}<th class="num">Дундаж</th></tr></thead><tbody>${body}${foot}</tbody></table></div>
-      ${R.note ? `<div class="status ok" role="status">${esc(R.note)}</div>` : ''}${goalsHTML(M)}${rosterHTML(M)}${diagHTML()}</section>`;
+      ${R.note ? `<div class="status ok" role="status">${esc(R.note)}</div>` : ''}${R.archive ? '' : goalsHTML(M) + rosterHTML(M)}${archiveHTML()}${diagHTML()}</section>`;
   }
   function studentHTML(){
     const M = classModel(), s = M.students.find(x => x.k === R.stu);
@@ -477,7 +517,7 @@
     if(R.loading){ box.innerHTML = `<section class="paper res"><p>Ачаалж байна…${R.prog ? ' (' + R.prog + ' код)' : ''}</p></section>`; return; }
     if(!R.codes && !R.rows && !R.all) { box.innerHTML = loginHTML(); return; }
     const main = R.code && R.rows ? detailHTML() : R.view === 'class' && R.all ? (R.stu ? studentHTML() : classHTML()) : codesHTML();
-    box.innerHTML = main + (R.error ? `<div class="status err">${esc(R.error)}</div>` : '');
+    box.innerHTML = main.replace('<section class="paper res">', '<section class="paper res">' + archBanner()) + (R.error ? `<div class="status err">${esc(R.error)}</div>` : '');
   };
 
   function csv(){
@@ -491,24 +531,27 @@
   }
 
   on('tabResults', 'click', () => { S.mode = 'results'; render(); if(URL0() && R.key && !R.codes && !R.all && !R.loading) (R.view === 'class' ? loadAll() : loadCodes()); });
-  document.addEventListener('submit', e => { if(e.target.id === 'rosterForm'){ e.preventDefault(); const grp = ($('rGroup').value || '').trim(); if(!grp){ $('rGroup').focus(); return; } saveRoster(grp, $('rNames').value); return; }
+  document.addEventListener('submit', e => { if(e.target.id === 'archForm'){ e.preventDefault(); const nm = ($('archName').value || '').trim(); if(confirm(`Одоогийн бүх дүнг «${nm}» архив руу шилжүүлэх үү?\n\n«Дүн» хуудас хоосорно. Архивласан дүнг дараа нь «Харах» товчоор нээж болно.`)) doArchive(nm); return; }
+    if(e.target.id === 'rosterForm'){ e.preventDefault(); const grp = ($('rGroup').value || '').trim(); if(!grp){ $('rGroup').focus(); return; } saveRoster(grp, $('rNames').value); return; }
     if(e.target.id === 'goalForm'){ e.preventDefault(); const grp = ($('gGroup').value || '').trim(); if(!grp) return; const ex = (R.goals || []).some(g => NK(g.label) === NK(grp)); saveGoal(grp, Number($('gTarget').value) || 0, $('gTitle').value.trim(), ex && !confirm('Энэ бүлэгт зорилго аль хэдийн байна. Тоолохыг тэгээс шинээр эхлүүлэх үү? («Цуцлах» дарвал өмнөх тоо хадгалагдаж зөвхөн зорилго шинэчлэгдэнэ)')); return; }
     if(e.target.id === 'keyForm'){ e.preventDefault(); R.key = $('tkey').value.trim(); if(R.key) (R.view === 'class' ? loadAll() : loadCodes()); } });
   document.addEventListener('click', e => {
     const c = e.target.closest('[data-rcode]'); if(c){ R.note = ''; loadCode(c.dataset.rcode); return; }
-    if(e.target.closest('#resBack')){ R.code = ''; R.rows = null; if(R.view === 'class' && R.all) renderResults(); else loadCodes(); return; }
+    if(e.target.closest('#resBack')){ R.code = ''; R.rows = null; if(R.archive || (R.view === 'class' && R.all)) renderResults(); else loadCodes(); return; }
     const v = e.target.closest('[data-rview]'); if(v){ R.view = v.dataset.rview; R.note = ''; if(R.view === 'class' && !R.all) loadAll(); else if(R.view === 'codes' && !R.codes) loadCodes(); else renderResults(); return; }
     const st = e.target.closest('[data-stu]'); if(st){ R.stu = st.dataset.stu; R.note = ''; renderResults(); window.scrollTo(0, 0); return; }
     if(e.target.closest('#stuBack')){ R.stu = ''; R.note = ''; renderResults(); return; }
     const rl = e.target.closest('[data-replink]'); if(rl){ copyRep(rl.dataset.replink); return; }
     const gl = e.target.closest('[data-grplink]'); if(gl){ copyGrp(gl.dataset.grplink); return; }
     if(e.target.closest('#resReloadAll')){ R.note = ''; loadAll(); return; }
+    if(e.target.closest('#archBack')){ R.archive = ''; R.code = ''; R.rows = null; R.stu = ''; loadAll(); return; }
+    const ao = e.target.closest('[data-archopen]'); if(ao){ openArchive(ao.dataset.archopen); return; }
     if(e.target.closest('#cCsv')){ classCsv(); return; }
     const rb = e.target.closest('#cReports'); if(rb){ exportReports(classModel().students, rb); return; }
     const sr = e.target.closest('#stuReport'); if(sr){ const s = classModel().students.find(x => x.k === R.stu); if(s) exportReports([s], sr); return; }
     const re = e.target.closest('[data-rosteredit]'); if(re){ const ro = rosterOf(re.dataset.rosteredit); if(ro){ R.rosterEdit = {group: ro.label, names: ro.names.join('\n')}; R.rosterMsg = ''; renderResults(); const t = $('rNames'); if(t){ t.scrollIntoView({block: 'center'}); t.focus(); } } return; }
     const gd = e.target.closest('[data-goaldel]'); if(gd){ if(confirm(`«${gd.dataset.goaldel}» бүлгийн зорилгыг устгах уу?`)) saveGoal(gd.dataset.goaldel, 0, '', false); return; }
-    if(e.target.closest('#resReload')){ loadCodes(); return; }
+    if(e.target.closest('#resReload')){ if(R.archive){ R.archive = ''; loadAll(); } else loadCodes(); return; }
     if(e.target.closest('#resReloadCode')){ loadCode(R.code); return; }
     if(e.target.closest('#resCsv')){ csv(); return; }
     if(e.target.closest('#resLogout')){ R.key = ''; R.codes = null; R.rows = null; R.all = null; R.stu = ''; R.code = ''; try { localStorage.removeItem('ws_tkey'); } catch(err){} renderResults(); }
