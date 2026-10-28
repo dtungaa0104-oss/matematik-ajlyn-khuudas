@@ -1930,7 +1930,10 @@
   function parseVal(s){
     s = String(s).trim().replace(/[−–]/g, '-').replace(/[·×]/g, '*').replace(/[:÷]/g, '/').replace(/\s+/g, '').replace(/°/g, '').replace(/π$/, '');
     if(/^-?\d+,\d+$/.test(s)) s = s.replace(',', '.');
-    if(!s || !/^[0-9.+\-*/()√]+$/.test(s)) return NaN;
+    s = s.replace(/[²³⁴]/g, c => '^' + ({'²': 2, '³': 3, '⁴': 4})[c]);   // утасны гараас: 2², 5^3
+    if(!s || !/^[0-9.+\-*/()√^]+$/.test(s)) return NaN;
+    for(let k = 0; k < 4 && s.includes('^'); k++) s = s.replace(/(√?\d+(?:\.\d+)?|\([^()]*\))\^\(?(-?\d+(?:\.\d+)?)\)?/g, '(($1)**($2))');
+    if(s.includes('^')) return NaN;
     s = s.replace(/(\d)√/g, '$1*√').replace(/√\(/g, 'Math.sqrt(').replace(/√(\d+(?:\.\d+)?)/g, 'Math.sqrt($1)');
     try { const v = Function('"use strict";return (' + s + ')')(); return typeof v === 'number' && isFinite(v) ? v : NaN; } catch(e){ return NaN; }
   }

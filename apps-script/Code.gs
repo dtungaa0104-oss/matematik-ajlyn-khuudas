@@ -15,7 +15,7 @@ const TEACHER_KEY = 'ЭНИЙГ-СОЛИНО-УУ';   // Багшийн нууц
 const SHEET_NAME = 'Дүн';
 const HEAD = ['Илгээсэн огноо', 'Код', 'Анги', 'Сэдэв', 'Түвшин', 'Хэлбэр', 'Нэр', 'Бүлэг',
   'Оноо', 'Нийт', 'Хувь (%)', 'Хугацаа (мин)', 'Алдсан даалгавар', 'Даалгавар бүрийн дүн', 'Сурагчийн хариу', 'Оролдлого'];
-const CODE_RE = /^\d{1,2}-\d{1,3}-[1234]-(\d{1,2}-[012]|\d{1,2}\+\d{1,2}|\d{1,2}\.\d{1,2}\.\d{1,2})-\d{1,6}$/;  // + нэгжийн шалгалт: 9-104-4-4.4.2-2024  // хуучин: 9-5-2-10-2-2024, шинэ: 9-5-2-10+5-2024
+const CODE_RE = /^(\d{1,2}-\d{1,3}-[1234]-(\d{1,2}-[012]|\d{1,2}\+\d{1,2}|\d{1,2}\.\d{1,2}\.\d{1,2})-\d{1,6}|E-\d{1,6})$/;  // + ЭЕШ сорил: E-54321  // + нэгжийн шалгалт: 9-104-4-4.4.2-2024  // хуучин: 9-5-2-10-2-2024, шинэ: 9-5-2-10+5-2024
 
 /** Хүснэгтийг олох: Sheets-ээс нээсэн бол тэр хүснэгт, script.google.com-оос шууд үүсгэсэн бол шинэ хүснэгтийг автоматаар үүсгэнэ */
 function ss_() {
@@ -76,11 +76,12 @@ function doPost(e) {
       return out_({ ok: true, rosters: listRosters_() });
     }
     if (d.action === 'report') return out_(report_(d));     // сурагч, багш: даалгаврын алдаа, санал хүсэлт
+    if (d.action === 'live') return out_(live_(d));          // сурагч: хичээлийн үеийн явц (шууд хяналт)
     const code = String(d.code || '');
     if (!CODE_RE.test(code)) return out_({ ok: false, error: 'code' });
     const name = clean_(d.name, 60), group = clean_(d.group, 20);
     if (!name) return out_({ ok: false, error: 'name' });
-    const total = Math.max(1, Math.min(40, parseInt(d.total, 10) || 0));
+    const total = Math.max(1, Math.min(code.indexOf('E-') === 0 ? 100 : 40, parseInt(d.total, 10) || 0));
     const score = Math.max(0, Math.min(total, parseInt(d.score, 10) || 0));
 
     const sh = sheet_();
@@ -94,7 +95,7 @@ function doPost(e) {
     sh.appendRow([
       new Date(), "'" + code, Number(d.grade) || '', clean_(d.topic, 120), clean_(d.level, 20), clean_(d.form, 20),
       name, group, score, total, Math.round(score / total * 100),
-      Math.round((Number(d.minutes) || 0) * 10) / 10, clean_(d.missed, 200), "'" + String(d.detail || '').replace(/[^01-]/g, '').slice(0, 40), clean_(d.answers, 1500), attempt
+      Math.round((Number(d.minutes) || 0) * 10) / 10, clean_(d.missed, 300), "'" + String(d.detail || '').replace(/[^01-]/g, '').slice(0, 60), clean_(d.answers, 1500), attempt
     ]);
     return out_({ ok: true, attempt: attempt });
   } catch (err) {
@@ -128,6 +129,19 @@ function listReports_() {
   return sh.getRange(from, 1, last - from + 1, REP_HEAD.length).getValues().reverse().map(r => ({
     time: r[0] instanceof Date ? Utilities.formatDate(r[0], tz, 'yyyy.MM.dd HH:mm') : String(r[0]), kind: String(r[1]), code: String(r[2]), n: r[3],
     q: String(r[4]), ans: String(r[5]), right: String(r[6]), note: String(r[7]), name: String(r[8]), group: String(r[9]) }));
+}
+
+/** Шууд хяналт: сурагч бүрийн явцыг кодоор нь CacheService-д 6 цаг хадгална (хүснэгтэд бичихгүй) */
+function liveKey_(code) { return 'live_' + code; }
+function liveGet_(code) { try { return JSON.parse(CacheService.getScriptCache().get(liveKey_(code)) || '{}'); } catch (e) { return {}; } }
+function live_(d) {
+  const code = String(d.code || ''); if (!CODE_RE.test(code)) return { ok: false, error: 'code' };
+  const name = clean_(d.name, 60), group = clean_(d.group, 20); if (!name) return { ok: false, error: 'name' };
+  const m = liveGet_(code), id = norm_(name) + '|' + norm_(group), now = Date.now(), old = m[id] || {};
+  m[id] = { n: name, g: group, p: String(d.p || '').replace(/[^yn-]/g, '').slice(0, 40), d: !!d.done, s: Math.max(0, Math.min(100, parseInt(d.s, 10) || 0)), t: now, t0: old.t0 || now };
+  const ids = Object.keys(m); if (ids.length > 90) ids.sort((a, b) => m[a].t - m[b].t).slice(0, ids.length - 90).forEach(k => delete m[k]);
+  CacheService.getScriptCache().put(liveKey_(code), JSON.stringify(m), 21600);
+  return { ok: true };
 }
 
 /** Хуудасны дүнгийн мөрүүдийг сайтад өгөх хэлбэрт оруулна */
@@ -183,7 +197,7 @@ function listGoals_() { const G = goals_(); return Object.keys(G).map(k => ({ ke
 /** Багшийн «Дүн» хэсэгт өгөгдөл өгөх (нууц үгтэй) */
 function doGet(e) {
   const p = e.parameter || {};
-  if (p.action === 'ping') return out_({ ok: true, app: 'ajlyn-khuudas', v: 8 });
+  if (p.action === 'ping') return out_({ ok: true, app: 'ajlyn-khuudas', v: 9 });
   // Ангийн хамтын зорилго: сурагчид зөвхөн бүлгийнхээ нийт тоог харна (нэр харагдахгүй)
   // Ангийн нэрсийн жагсаалт: сурагч нэрээ жагсаалтаас сонгоно
   if (p.action === 'roster') { const r = getRoster_(p.group || ''); return out_({ ok: true, label: r ? r.label : '', names: r ? r.names : null }); }
@@ -199,6 +213,7 @@ function doGet(e) {
   if (p.action === 'archives') return out_({ ok: true, archives: listArchives_() });
   if (p.action === 'archived') { const ash = ss_().getSheetByName(ARCH_PREFIX + (p.name || '')); return ash ? out_({ ok: true, rows: rowsOf_(ash) }) : out_({ ok: false, error: 'name' }); }
   if (p.action === 'goals') return out_({ ok: true, goals: listGoals_() });
+  if (p.action === 'live') { const m = liveGet_(String(p.code || '')); return out_({ ok: true, now: Date.now(), list: Object.keys(m).map(k => m[k]) }); }
   if (p.action === 'reports') return out_({ ok: true, reports: listReports_() });
   if (p.action === 'rosters') return out_({ ok: true, rosters: listRosters_() });
   if (p.action === 'setgoal') {

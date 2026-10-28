@@ -49,6 +49,7 @@
     setOutbox([...left, ...outbox()]); flushing = false;
     if(left.length < a.length && S.sendState && S.sendState.queued){ setSend({text: 'Хадгалсан дүн багшид илгээгдлээ ✓', cls: 'ok'}); }
   }
+  window.queueResult = d => { queue(d); window.flushOutbox(); };
   window.addEventListener('online', () => window.flushOutbox());
   setTimeout(() => window.flushOutbox(), 1500);
   window.submitResult = async function(){
@@ -81,7 +82,7 @@
     try { res = await fetch(url + '?action=ping'); text = await res.text(); }
     catch(e){ return {ok: false, msg: 'Скрипт хандалт зөвшөөрөхгүй байна. Apps Script → Управление развертываниями → ✏️ → «У кого есть доступ: Все» (Anyone) болгож, «Версия: Новая версия» сонгоод «Развернуть» дарна уу. Сургуулийн (Workspace) бүртгэлд «Все» сонголт байхгүй бол хувийн Gmail бүртгэлээр скриптээ үүсгэнэ үү.'}; }
     let j = null; try { j = JSON.parse(text); } catch(e){}
-    if(j && j.ok && j.app === 'ajlyn-khuudas') return (j.v || 1) < 2 ? {ok: false, msg: 'Холболт хэвийн, гэхдээ скрипт хуучин хувилбартай: «10+5» хэлбэрийн шинэ кодтой дүнг хүлээж авахгүй. apps-script/Code.gs-ийн шинэ кодыг хуулж тавиад «Управление развертываниями → ✏️ → Новая версия → Развернуть» хийнэ үү.'} : (j.v || 1) < 8 ? {ok: true, msg: `Холболт хэвийн ✓ Дүн цуглуулалт ажиллаж байна (v${j.v || 1}). Нэгжийн шалгалт, алдаа мэдээлэх, хамтын зорилго, нэрсийн жагсаалт, архивлах боломжийг ашиглах бол apps-script/Code.gs-ийн шинэ кодыг (v8) хуулж тавиад «Новая версия» болгон дахин байршуулна уу.`} : {ok: true, msg: 'Холболт хэвийн ✓ Скрипт хамгийн сүүлийн хувилбартай (v8).'};
+    if(j && j.ok && j.app === 'ajlyn-khuudas') return (j.v || 1) < 2 ? {ok: false, msg: 'Холболт хэвийн, гэхдээ скрипт хуучин хувилбартай: «10+5» хэлбэрийн шинэ кодтой дүнг хүлээж авахгүй. apps-script/Code.gs-ийн шинэ кодыг хуулж тавиад «Управление развертываниями → ✏️ → Новая версия → Развернуть» хийнэ үү.'} : (j.v || 1) < 9 ? {ok: true, msg: `Холболт хэвийн ✓ Дүн цуглуулалт ажиллаж байна (v${j.v || 1}). Шууд хяналт, нэгжийн шалгалт, алдаа мэдээлэх, хамтын зорилго, нэрсийн жагсаалт, архивлах боломжийг ашиглах бол apps-script/Code.gs-ийн шинэ кодыг (v9) хуулж тавиад «Новая версия» болгон дахин байршуулна уу.`} : {ok: true, msg: 'Холболт хэвийн ✓ Скрипт хамгийн сүүлийн хувилбартай (v9).'};
     if(j && j.ok === false && j.error === 'key') return {ok: false, msg: 'Скрипт хуучин хувилбартай байна. Code.gs-ийг шинэчлээд «Управление развертываниями → ✏️ → Новая версия → Развернуть» хийнэ үү.'};
     if(/<html/i.test(text || '')) return {ok: false, msg: 'Скриптээс HTML хуудас ирлээ (нэвтрэх хуудас эсвэл алдаа). Хандах эрх «Все» эсэх, Code.gs бүтэн хадгалагдсан эсэхийг шалгаад шинэ хувилбараар дахин байршуулна уу.'};
     return {ok: false, msg: 'Скриптийн хариу танигдсангүй (HTTP ' + (res && res.status) + ').'};
@@ -372,11 +373,27 @@
   function viewSwitch(){
     return `<div class="seg res-view" role="group" aria-label="Дүнг харах хэлбэр"><button type="button" data-rview="class" aria-pressed="${R.view === 'class'}">Ангийн хүснэгт</button><button type="button" data-rview="codes" aria-pressed="${R.view === 'codes'}">Код бүрээр</button></div>`;
   }
+  /* ---------- ЭЕШ-ийн бүтэцтэй сорил (код E-54321) ---------- */
+  function examHTML(){
+    if(!window.EXAM) return '';
+    const rows = (R.all || []).filter(r => /^E-\d+$/.test(r.code) && (!R.cgrp || NK(r.group) === R.cgrp)).sort((a, b) => a.time < b.time ? -1 : 1);
+    if(!rows.length) return '';
+    const st = new Map(); rows.forEach(r => { const k = NK(r.name) + '|' + NK(r.group); const e = st.get(k) || {name: r.name, group: r.group, list: []}; e.list.push(r); st.set(k, e); });
+    const parts = r => { const X = EXAM.make(Number(r.code.slice(2))), d = String(r.detail || ''); let p1 = 0, p2 = 0; X.forEach((p, i) => { if(d[i] === '1'){ if(p.part === 1) p1 += p.pts; else p2 += p.pts; } }); return {X, d, p1, p2}; };
+    const agg = EXAM.STR.map(() => ({got: 0, max: 0}));
+    const trs = [...st.values()].sort((a, b) => (a.group + a.name).localeCompare(b.group + b.name, 'mn')).map(e => { const last = e.list[e.list.length - 1], best = Math.max(...e.list.map(r => r.score)), pp = parts(last);
+      pp.X.forEach((p, i) => { agg[p.str].max += p.pts; if(pp.d[i] === '1') agg[p.str].got += p.pts; });
+      return `<tr><td>${esc(e.name)}</td><td>${esc(e.group)}</td><td class="num">${e.list.length}</td><td class="num ${last.score < 40 ? 'bad' : last.score >= 70 ? 'ok' : ''}"><b>${last.score}</b></td><td class="num">${pp.p1}/72</td><td class="num">${pp.p2}/28</td><td class="num">${best}</td><td>${esc(last.time)}</td></tr>`; }).join('');
+    const str = EXAM.STR.map(([name], i) => ({name, pc: agg[i].max ? Math.round(agg[i].got / agg[i].max * 100) : null})).filter(x => x.pc != null).sort((a, b) => a.pc - b.pc);
+    return `<h3 class="res-h3">ЭЕШ-ийн бүтэцтэй сорил</h3><p class="small">Сурагч бүрийн сүүлийн сорилын 100 онооны түүхий оноо. Агуулгын дундаж нь сүүлийн сорилуудаас тооцогдоно; хамгийн сул агуулга эхэндээ.</p>
+      <div class="tbl-wrap"><table class="rtable"><thead><tr><th>Нэр</th><th>Бүлэг</th><th class="num">Сорил</th><th class="num">Сүүлийн</th><th class="num">1-р хэсэг</th><th class="num">2-р хэсэг</th><th class="num">Хамгийн сайн</th><th>Огноо</th></tr></thead><tbody>${trs}</tbody></table></div>
+      <div class="ex-agg">${str.map(x => `<div><span>${esc(x.name)}</span><div class="ex-sbar"><span style="width:${x.pc}%"></span></div><b class="${x.pc < 50 ? 'tbad' : ''}">${x.pc}%</b></div>`).join('')}</div>`;
+  }
   function classHTML(){
     const M = classModel(), g = R.cg;
     const head = `<div class="res-head"><h2 class="p-topic" style="font-size:24px;margin:0">Ангийн дүнгийн хүснэгт</h2>
         <div class="row"><button class="btn ghost" id="resReloadAll" type="button">Шинэчлэх</button><button class="btn ghost" id="resLogout" type="button">Гарах</button></div></div>${viewSwitch()}`;
-    if(!M.grades.length) return `<section class="paper res">${head}<p>Одоогоор илгээсэн дүн алга. Сурагчдад холбоос өгсний дараа энд гарна.</p>${R.archive ? '' : goalsHTML(M) + rosterHTML(M)}${reportsHTML()}${archiveHTML()}${diagHTML()}</section>`;
+    if(!M.grades.length) return `<section class="paper res">${head}${examHTML() || '<p>Одоогоор илгээсэн дүн алга. Сурагчдад холбоос өгсний дараа энд гарна.</p>'}${R.archive ? '' : goalsHTML(M) + rosterHTML(M)}${reportsHTML()}${archiveHTML()}${diagHTML()}</section>`;
     const filt = `<div class="res-tools">
         <label class="f inline">Анги <select id="cGrade">${M.grades.map(x => `<option value="${x}" ${x === g ? 'selected' : ''}>${x}-р анги</option>`).join('')}</select></label>
         <label class="f inline">Бүлэг <select id="cGroup"><option value="">Бүх бүлэг</option>${M.groups.map(([k, v]) => `<option value="${esc(k)}" ${k === R.cgrp ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
@@ -401,7 +418,7 @@
     const legend = `<p class="small mx-legend">Нүд бүрт гурван түвшин: <b>М</b> — мэдлэг, ойлголт, <b>Ч</b> — чадвар, <b>Х</b> — хэрэглээ. Тоо нь сүүлийн оролдлогын хувь. <i class="lv g">80</i> 80%-иас дээш <i class="lv m">65</i> 50–79% <i class="lv b">40</i> 50%-иас доош <i class="lv e"></i> өгөөгүй. Нүдэн дээр хулганаар заахад бүх оролдлого харагдана.</p>`;
     const grpNames = R.cgrp ? M.groups.filter(([k]) => k === R.cgrp).map(x => x[1]) : (R.rosters || []).map(r => r.label).filter(l => M.groups.some(([k]) => k === NK(l)));
     const miss = missingHTML(M.rs, grpNames, 'Нэг ч ажил илгээгээгүй сурагчид');
-    return `<section class="paper res">${head}${filt}${stats}${miss}${watch}${units}
+    return `<section class="paper res">${head}${filt}${stats}${miss}${watch}${units}${examHTML()}
       ${weeklyHTML(M.rs)}
       <h3 class="res-h3">Сурагч × нэгж</h3>${legend}
       <div class="tbl-wrap"><table class="rtable mxt"><thead><tr><th class="num">№</th><th class="mx-name">Нэр</th><th>Бүлэг</th>${th}<th class="num">Дундаж</th></tr></thead><tbody>${body}${foot}</tbody></table></div>

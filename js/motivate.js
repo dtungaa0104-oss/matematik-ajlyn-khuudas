@@ -133,7 +133,7 @@
     if(m.stationUp >= 0) parts.push(`<p class="mv-trip">Монгол аялал: та <b>${TRIP[m.stationUp][3]}</b> хүрлээ. ${TRIP[m.stationUp][2]}</p>`);
     if(m.fresh && m.fresh.length) parts.push(`<div class="mv-badges">${m.fresh.map(id => { const b = BADGES.find(x => x[0] === id); return `<span class="badge on"><i aria-hidden="true">${b[1]}</i>Шинэ тэмдэг: ${b[2]}</span>`; }).join('')}</div>`);
     parts.push(revNote(m.rev));
-    parts.push(`<div class="result-actions"><button class="btn ghost" type="button" data-myprog>Миний ахиц</button></div>`);
+    parts.push(`<div class="result-actions"><button class="btn ghost" type="button" data-myprog>Миний ахиц</button>${window.COACH && !S.daily ? `<button class="btn ghost" type="button" data-gohref="${esc(COACH.homeURL(S.grade))}">Миний сурах зам</button>` : ''}</div>`);
     return `<div class="motiv${pct >= PASS ? ' win' : ''}" role="status">${parts.join('')}</div>`;
   };
   MOTIV.barHTML = () => { const n = totalStars(starMap()), d = revDue().length;
@@ -189,6 +189,7 @@
   }
   function openProg(){ const d = dlg(); d.innerHTML = progHTML(); if(d.showModal) d.showModal(); else d.setAttribute('open', ''); }
   document.addEventListener('click', e => {
+    const gh = e.target.closest('[data-gohref]'); if(gh){ location.href = gh.dataset.gohref; location.reload(); return; }
     const mp = e.target.closest('[data-myprog]'); if(mp){ openProg(); if(mp.dataset.myprog === 'rev'){ const h = document.getElementById('revSec'); if(h) h.scrollIntoView({block: 'start'}); } return; }
     const cb = e.target.closest('[data-cert]'); if(cb){ cert(cb, ...cb.dataset.cert.split('-').map(Number)); }
   });
