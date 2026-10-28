@@ -141,15 +141,89 @@
   document.addEventListener('input', e => { const i = e.target.dataset && e.target.dataset.exin; if(i == null || E.done) return; E.ans[+i] = e.target.value; save(); const nv = document.querySelector(`[data-exjump="${i}"]`); if(nv) nv.classList.toggle('on', e.target.value.trim() !== ''); counter(); });
   window.EXAM = {make, score, STR, item: i => E.X && E.X[i], label, open: (seed, fixed) => intro(seed, fixed)};
 
-  /* Багш: ангид нэг ижил сорил өгөх холбоос */
-  const sp = document.getElementById('sharePanel');
-  if(sp && !S.student && !/^#(e|me|a)(-|@|$)/.test(location.hash)){
-    const box = document.createElement('div'); box.className = 'daily-box';
-    box.innerHTML = `<h3>ЭЕШ-ийн бүтэцтэй сорил</h3><p class="small" style="margin:0">36 сонгох + 4 задгай, 100 оноо, 100 минут. Холбоосоор бүх сурагч ижил сорил авч, дүн нь «Дүн» хэсэгт агуулга бүрээр гарна.</p>
-      <button class="btn ghost wide" id="exCopy" type="button">Сорилын холбоос хуулах</button><div class="status" id="exStatus" hidden></div>`;
-    sp.appendChild(box);
-    document.getElementById('exCopy').addEventListener('click', async () => { const sd = 1000 + Math.floor(Math.random() * 98000), url = location.href.split('#')[0] + '#e-' + sd + tag(), ok = await copyText(url);
-      shareSay('exStatus', ok ? `Сорилын холбоос (дугаар ${sd}) хуулагдлаа: ${url}` : 'Хуулж чадсангүй: ' + url, ok ? 'ok' : 'err'); });
+  /* ---------- Багш: «Анги» хэсэгт 6–12-ын хажууд «ЭЕШ» ----------
+     Сонгоход сэдэв, түвшний самбаруудын оронд ЭЕШ сорилын самбар гарч, ажлын хуудасны оронд сорилын цаас харагдана. */
+  if(!S.student && typeof window.controls === 'function' && typeof window.render === 'function'){
+    const T = {on: false, seed: 0, key: false};
+    try { const v = JSON.parse(localStorage.getItem('ws_esh') || '{}'); T.on = !!v.on && !/^#(w|s|sr|d)-/.test(location.hash); T.seed = +v.seed || 0; T.key = !!v.key; } catch(e){}
+    if(!T.seed) T.seed = 1000 + Math.floor(Math.random() * 98000);
+    const keep = () => { try { localStorage.setItem('ws_esh', JSON.stringify(T)); } catch(e){} };
+    const link = () => location.href.split('#')[0] + '#e-' + T.seed + tag();
+    const c0 = window.controls;
+    window.controls = function(){ const r = c0.apply(this, arguments); const g = document.getElementById('grades');
+      if(g){ if(T.on) g.querySelectorAll('[data-g]').forEach(b => b.setAttribute('aria-pressed', 'false'));
+        g.insertAdjacentHTML('beforeend', `<button class="chip chip-esh" type="button" data-esh aria-pressed="${T.on}" title="Элсэлтийн ерөнхий шалгалтын бүтэцтэй сорил">ЭЕШ</button>`); }
+      return r; };
+    const r0 = window.render;
+    window.render = function(){
+      const res = r0.apply(this, arguments), on = T.on && S.mode !== 'results';
+      document.body.classList.toggle('esh-mode', on);
+      if(on){ $('sheet').innerHTML = paperHTML(T.seed, T.key); $('score').hidden = true; panel(); }
+      return res;
+    };
+    function panel(){
+      let p = document.getElementById('eshPanel');
+      if(!p){ p = document.createElement('section'); p.className = 'panel'; p.id = 'eshPanel'; const first = document.querySelector('aside .panel'); first.parentNode.insertBefore(p, first.nextSibling); }
+      p.innerHTML = `<h2>ЭЕШ-ийн бүтэцтэй сорил</h2>
+        <p class="small" style="margin:0">1-р хэсэг 36 сонгох даалгавар (72 оноо), 2-р хэсэг 4 задгай бодлого (28 оноо). Нийт 100 оноо, 100 минут. 9–12-р ангийн 12 агуулгаас.</p>
+        <div class="row small">Сорилын дугаар: <span class="code">E-${T.seed}</span></div>
+        <button class="btn ghost wide" type="button" id="eshNew">Шинэ хувилбар үүсгэх</button>
+        <label class="f" for="eshLink">Сурагчийн холбоос<input type="text" id="eshLink" readonly value="${esc(link())}"></label>
+        <button class="btn wide" type="button" id="eshCopy">Холбоос хуулах</button>
+        <div class="qr" id="eshQr" role="img" aria-label="Сорилын холбоосын QR код"></div>
+        <button class="btn ghost wide" type="button" data-eshtry>Сурагчийн харагдацаар туршиж үзэх</button>
+        <label class="check"><input type="checkbox" id="eshKey"${T.key ? ' checked' : ''}> Хариултын түлхүүр харуулах</label>
+        <button class="btn ghost wide" type="button" id="eshPdf">PDF татаж хэвлэх</button>
+        <div class="status" id="eshStatus" hidden></div>
+        <p class="small" style="margin:0">Бүх сурагч ижил дугаартай сорил авна. Дүн «Дүн» хэсгийн «ЭЕШ-ийн бүтэцтэй сорил» хэсэгт агуулга бүрээр гарна.</p>`;
+      if(window.qrcode){ try { const q = qrcode(0, 'M'); q.addData(link()); q.make(); document.getElementById('eshQr').innerHTML = q.createSvgTag({cellSize: 4, margin: 2, scalable: true}); } catch(e){} }
+    }
+    const say = (t, c) => { const st = document.getElementById('eshStatus'); if(!st) return; st.hidden = false; st.className = 'status ' + (c || ''); st.textContent = t; };
+    /* Сорилын цаас (багшийн харагдац ба PDF) */
+    function paperHTML(seed, withKey){
+      const X = make(seed), school = (($('school') || {}).value || '').trim();
+      const mc = (p, i) => `<li class="ws-item mc"><span class="p-n">${label(X, i)}.</span><div class="p-q">${Mx(p.q)} <span class="ex-pts">${p.pts} оноо</span></div>${p.fig ? `<div class="p-fig">${p.fig}</div>` : ''}
+        <div class="p-opts${p.mc.some(o => o.replace(/<[^>]+>/g, '').length > 9) ? ' long' : ''}">${p.mc.map((o, k) => `<span><b>${LETTER[k]}</b><span class="ov">${Mx(o)}</span></span>`).join('')}</div></li>`;
+      const p2 = [0, 1, 2, 3].map(k => { const idx = X.map((p, i) => p.part === 2 && p.prob === k ? i : -1).filter(i => i >= 0); if(!idx.length) return ''; const f = X[idx[0]], tp = W.topicsOf(f.g)[f.t - 1];
+        return `<li class="ws-item wide"><span class="p-n">${37 + k}.</span><div class="p-q"><span class="ex-topic small">${Mx(esc(tp.title))} · 7 оноо</span>${idx.map(i => `<div class="ex-psub"><b>${X[i].sub})</b> ${Mx(X[i].q)} <span class="ex-pts">${X[i].pts} оноо</span>${X[i].fig ? `<div class="p-fig">${X[i].fig}</div>` : ''}<div class="p-ans">Хариу:<i></i></div></div>`).join('')}</div></li>`; }).join('');
+      const key = withKey ? `<section class="paper key"><h3>Хариултын түлхүүр · E-${seed}</h3><ol class="key-list">${X.map((p, i) => `<li><span>${label(X, i)}.</span>${p.mc ? `<b style="font-family:var(--sans)">${LETTER[p.ci]}</b>&nbsp;<span class="ov">${Mx(p.mc[p.ci])}</span>` : `<span class="ov">${Mx(p.show)}</span>`}</li>`).join('')}</ol></section>` : '';
+      return `<article class="paper esh-paper"><div class="p-head"><div class="p-school">${esc(school || 'Математикийн ажлын хуудас')}</div><div class="p-grade">ЭЕШ-ийн бэлтгэл</div>
+        <h2 class="p-topic">ЭЕШ-ийн бүтэцтэй сорил</h2><div class="p-meta">36 сонгох + 4 задгай · 100 оноо · 100 минут · Дугаар E-${seed}</div>
+        <div class="p-fields"><span>Нэр:<i></i></span><span>Бүлэг:<i></i></span><span>Огноо:<i></i></span><span>Оноо:<i></i>/100</span></div></div>
+        <p class="p-instr"><b>Заавар.</b> 1-р хэсгийн даалгавар бүрт зөв хариултын үсгийг дугуйлна. 2-р хэсгийн бодлогын бодолтыг бичиж, хариуг тоогоор (бутархай бол 3/4, язгуур бол √2) бичнэ. Цахимаар бөглөх бол сурагчийн холбоосоор орно.</p>
+        <ol class="p-items"><li class="p-sec">1-р хэсэг. Сонгох даалгавар<small>72 оноо: мэдлэг 1, чадвар 2, хэрэглээ 3 оноо</small></li>${X.map((p, i) => p.part === 1 ? mc(p, i) : '').join('')}
+        <li class="p-sec">2-р хэсэг. Задгай даалгавар<small>28 оноо</small></li>${p2}</ol>
+        <div class="p-foot"><span>${esc(school)}</span><span>E-${seed}</span></div></article>${key ? '<div class="paper-key">' + key + '</div>' : ''}`;
+    }
+    async function pdf(){
+      if(!window.html2pdf){ say('PDF бэлтгэх хэрэгсэл ачаалагдаагүй байна. Хуудсыг дахин ачаалаад оролдоно уу.', 'err'); return; }
+      const btn = document.getElementById('eshPdf'), box = document.getElementById('exportBox'); btn.disabled = true; say('PDF бэлтгэж байна…');
+      const sx = window.scrollX, sy = window.scrollY;
+      try {
+        box.innerHTML = paperHTML(T.seed, false) + (T.key ? '<div class="html2pdf__page-break"></div>' + paperHTML(T.seed, true).replace(/^[\s\S]*?<div class="paper-key">/, '<div>') : '');
+        if(document.fonts && document.fonts.ready) await document.fonts.ready; window.scrollTo(0, 0);
+        if(typeof fixSvgForCanvas === 'function') fixSvgForCanvas(box);
+        const name = `esh-soril-E-${T.seed}.pdf`;
+        const blob = await window.html2pdf().set({margin: [12, 12, 14, 12], filename: name, image: {type: 'jpeg', quality: 0.96}, html2canvas: {scale: 2, backgroundColor: '#FFFFFF', useCORS: true, scrollX: 0, scrollY: 0},
+          jsPDF: {unit: 'mm', format: 'a4', orientation: 'portrait'}, pagebreak: {mode: ['css', 'legacy'], avoid: ['.ws-item', '.key-list li', '.ex-psub']}}).from(box).outputPdf('blob');
+        if(typeof downloads !== 'undefined' && downloads) await downloads.save({filename: name, data: blob});
+        else { const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); }
+        say('PDF бэлэн боллоо.', 'ok');
+      } catch(e){ say('PDF үүсгэж чадсангүй. Дахин оролдоно уу.', 'err'); }
+      finally { btn.disabled = false; box.innerHTML = ''; window.scrollTo(sx, sy); }
+    }
+    document.addEventListener('click', async e => {
+      if(e.target.closest('[data-esh]')){ T.on = true; keep(); if(S.mode === 'results') S.mode = 'online'; render(); window.scrollTo(0, 0); return; }
+      if(!T.on) return;
+      if(e.target.closest('#eshNew')){ T.seed = 1000 + Math.floor(Math.random() * 98000); keep(); render(); return; }
+      if(e.target.closest('#eshCopy')){ const ok = await copyText(link()); say(ok ? 'Сорилын холбоос хуулагдлаа.' : 'Хуулж чадсангүй: ' + link(), ok ? 'ok' : 'err'); return; }
+      if(e.target.closest('[data-eshtry]')){ intro(T.seed, true); return; }
+      if(e.target.closest('#eshPdf')){ pdf(); }
+    });
+    document.addEventListener('click', e => { if(e.target.closest('[data-g]') && T.on){ T.on = false; keep(); } }, true);   // анги сонгоход энгийн горимд буцна (app.js build хийнэ)
+    document.addEventListener('change', e => { if(e.target.id === 'eshKey'){ T.key = e.target.checked; keep(); render(); } });
+    document.addEventListener('focusin', e => { if(e.target.id === 'eshLink') e.target.select(); });
+    if(T.on) render(); else controls();
   }
   const m = (location.hash || '').match(/^#e(?:-(\d{1,6}))?(?:@([A-Za-z0-9_-]{20,140}))?$/);
   if(m){

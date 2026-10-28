@@ -786,3 +786,15 @@ body.exam-open{overflow:hidden}
 .ex-sub>*{grid-column:auto}
 .ex-sub .p-inrow{justify-self:start;display:flex;gap:8px;align-items:center}
 @media (max-width:520px){.ex-st td:nth-child(3),.ex-st th:nth-child(3){display:none}}
+
+/* «Анги» хэсгийн ЭЕШ товч ба ЭЕШ горим */
+.chips{grid-template-columns:repeat(7,minmax(0,1fr)) auto}
+.chip-esh{padding:0 10px;font-size:14px;letter-spacing:.02em}
+body.esh-mode aside>section:not(:first-child):not(#eshPanel):not(#rurlPanel){display:none}
+body.esh-mode #onlineTools,body.esh-mode #projBtn{display:none!important}
+body:not(.esh-mode) #eshPanel{display:none}
+.esh-paper .ex-psub{margin-top:10px;break-inside:avoid}
+.esh-paper .ex-psub .p-ans{margin-top:6px}
+.esh-paper .ex-topic{display:block;color:var(--paper-muted)}
+@media (max-width:420px){.chips{grid-template-columns:repeat(4,minmax(0,1fr))}.chip-esh{grid-column:span 1}}
+body.esh-mode #bookNote{display:none}
