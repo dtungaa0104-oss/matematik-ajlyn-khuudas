@@ -19,6 +19,7 @@ self.addEventListener('fetch', e => {
   const req = e.request; if(req.method !== 'GET') return;
   const url = new URL(req.url), same = url.origin === location.origin, font = /fonts\.(googleapis|gstatic)\.com$/.test(url.hostname);
   if(!same && !font) return;                       // Apps Script болон бусад хаягт хүрэхгүй
+  if(same && url.pathname.includes('/media/')) return;   // видео: хөтөч өөрөө (Range хүсэлт) татна, хадгалахгүй
   if(same && url.pathname.endsWith('/js/config.js')){ // багшийн тохиргоо: эхлээд сүлжээнээс
     e.respondWith(fetch(req).then(r => { const cp = r.clone(); caches.open(VERSION).then(c => c.put(req, cp)); return r; }).catch(() => caches.match(req)));
     return;

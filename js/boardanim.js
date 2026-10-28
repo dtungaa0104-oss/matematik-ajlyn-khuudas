@@ -4,6 +4,26 @@
    3) Тэгш өнцөгт гурвалжны катетууд сунаж агшина: a² + b² = c².
    Эхэндээ шохойгоор зурж буй мэт гарч ирнэ. «Хөдөлгөөнийг багасгах» тохиргоотой үед, мөн «⏸» дарахад зогсоно. */
 (function(){
+  /* Арын видео (media/hero-*.mp4): толгой хэсгийг бүтэн дүүргэнэ. Сурагчийн горим, «хөдөлгөөнийг багасгах», дата хэмнэх үед ачаалахгүй. */
+  const header = document.querySelector('header.board'), video = header && header.querySelector('video.board-video');
+  const reduceM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches, saveData = navigator.connection && navigator.connection.saveData;
+  if(video && !document.body.classList.contains('student') && !/^#(s|sr|d|st|e|a|me|q)-?/.test(location.hash) && !saveData){
+    video.poster = 'media/hero-poster.jpg';
+    const q = window.innerWidth < 760 ? '480' : '720';   // H.264 (mp4) — ихэнх хөтөч; VP9 (webm) — mp4 тоглуулж чадахгүй хөтөчид
+    [['mp4', 'video/mp4'], ['webm', 'video/webm']].forEach(([ext, type]) => { const so = document.createElement('source'); so.src = `media/hero-${q}.${ext}`; so.type = type; video.appendChild(so); });
+    video.hidden = false; header.querySelector('.board-shade').hidden = false; header.classList.add('has-video');
+    let on = !reduceM; try { if(localStorage.getItem('ws_anim') === '0') on = false; } catch(e){}
+    const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'anim-btn'; (header.querySelector('.board-in') || header).appendChild(btn);
+    const sync = () => { btn.textContent = on ? '⏸' : '▶'; btn.setAttribute('aria-label', on ? 'Видеог зогсоох' : 'Видеог тоглуулах'); btn.title = btn.getAttribute('aria-label');
+      if(on && document.visibilityState === 'visible'){ const p = video.play(); if(p && p.catch) p.catch(() => {}); } else video.pause(); };
+    btn.addEventListener('click', () => { on = !on; try { localStorage.setItem('ws_anim', on ? '1' : '0'); } catch(e){} sync(); });
+    document.addEventListener('visibilitychange', sync);
+    if('IntersectionObserver' in window) new IntersectionObserver(es => { if(!on) return; if(es[0].isIntersecting) sync(); else video.pause(); }).observe(header);
+    if(on) video.preload = 'auto';
+    sync();
+    window.BOARDANIM = {video: true, get running(){ return !video.paused; }};
+    return;   // видеотой үед шохойн хөдөлгөөнт зураг шаардлагагүй
+  }
   const svg = document.querySelector('header.board svg.chalk'); if(!svg) return;
   const NS = 'http://www.w3.org/2000/svg';
   const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
