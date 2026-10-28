@@ -2,7 +2,7 @@
    Сурагч: «Шалгах» дарахад дүн автоматаар илгээгдэнэ.
    Багш: «Дүн» хэсэгт нууц үгээрээ нэвтэрч код бүрийн дүн, даалгаврын шинжилгээг харна. */
 (function(){
-  const URL0 = () => ((window.APP_CONFIG || {}).RESULTS_URL || '').trim();
+  const URL0 = () => window.resultsURL ? window.resultsURL() : ((window.APP_CONFIG || {}).RESULTS_URL || '').trim();
   const R = { key: '', codes: null, rows: null, code: '', loading: false, error: '', firstOnly: true, sort: 'name', view: 'class', all: null, cg: 0, cgrp: '', stu: '', prog: '', note: '' };
   try { R.key = localStorage.getItem('ws_tkey') || ''; } catch(e){}
 
@@ -71,7 +71,7 @@
   /* ---------- Холболт шалгах ---------- */
   async function diagnose(){
     const url = URL0();
-    if(!url) return {ok: false, msg: 'js/config.js доторх RESULTS_URL хоосон байна.'};
+    if(!url) return {ok: false, msg: 'Дүн хүлээн авах хаяг оруулаагүй байна. Зүүн талын «Дүн хүлээн авах хүснэгт» хэсэгт Apps Script-ийн …/exec хаягаа оруулна уу.'};
     if(/docs\.google\.com\/spreadsheets/.test(url)) return {ok: false, msg: 'RESULTS_URL-д хүснэгтийн хаяг орсон байна. Apps Script-ийн «Новое развертывание → Веб-приложение»-ээс гарсан …/exec хаягийг оруулна уу.'};
     if(/\/dev(\?|$)/.test(url)) return {ok: false, msg: 'RESULTS_URL нь /dev-ээр төгссөн байна. Байршуулалтаас гарсан …/exec хаягийг оруулна уу.'};
     if(!/^https:\/\/script\.google(usercontent)?\.com\/.+\/exec$/.test(url)) return {ok: false, msg: 'RESULTS_URL буруу хэлбэртэй: ' + url + ' — «https://script.google.com/macros/s/…/exec» хэлбэртэй байх ёстой (зай, илүү тэмдэггүй).'};
@@ -79,7 +79,7 @@
     try { res = await fetch(url + '?action=ping'); text = await res.text(); }
     catch(e){ return {ok: false, msg: 'Скрипт хандалт зөвшөөрөхгүй байна. Apps Script → Управление развертываниями → ✏️ → «У кого есть доступ: Все» (Anyone) болгож, «Версия: Новая версия» сонгоод «Развернуть» дарна уу. Сургуулийн (Workspace) бүртгэлд «Все» сонголт байхгүй бол хувийн Gmail бүртгэлээр скриптээ үүсгэнэ үү.'}; }
     let j = null; try { j = JSON.parse(text); } catch(e){}
-    if(j && j.ok && j.app === 'ajlyn-khuudas') return (j.v || 1) < 2 ? {ok: false, msg: 'Холболт хэвийн, гэхдээ скрипт хуучин хувилбартай: «10+5» хэлбэрийн шинэ кодтой дүнг хүлээж авахгүй. apps-script/Code.gs-ийн шинэ кодыг хуулж тавиад «Управление развертываниями → ✏️ → Новая версия → Развернуть» хийнэ үү.'} : (j.v || 1) < 4 ? {ok: true, msg: 'Холболт хэвийн ✓ Дүн цуглуулалт ажиллаж байна. «Ангийн хамтын зорилго»-г ашиглах бол apps-script/Code.gs-ийн шинэ кодыг (v4) хуулж тавиад «Новая версия» болгон дахин байршуулна уу.'} : {ok: true, msg: 'Холболт хэвийн ✓ Скрипт ажиллаж байна (v4).'};
+    if(j && j.ok && j.app === 'ajlyn-khuudas') return (j.v || 1) < 2 ? {ok: false, msg: 'Холболт хэвийн, гэхдээ скрипт хуучин хувилбартай: «10+5» хэлбэрийн шинэ кодтой дүнг хүлээж авахгүй. apps-script/Code.gs-ийн шинэ кодыг хуулж тавиад «Управление развертываниями → ✏️ → Новая версия → Развернуть» хийнэ үү.'} : (j.v || 1) < 5 ? {ok: true, msg: 'Холболт хэвийн ✓ Дүн цуглуулалт ажиллаж байна. «Ангийн хамтын зорилго», «Ангийн нэрсийн жагсаалт»-ыг ашиглах бол apps-script/Code.gs-ийн шинэ кодыг (v5) хуулж тавиад «Новая версия» болгон дахин байршуулна уу.'} : {ok: true, msg: 'Холболт хэвийн ✓ Скрипт ажиллаж байна (v5).'};
     if(j && j.ok === false && j.error === 'key') return {ok: false, msg: 'Скрипт хуучин хувилбартай байна. Code.gs-ийг шинэчлээд «Управление развертываниями → ✏️ → Новая версия → Развернуть» хийнэ үү.'};
     if(/<html/i.test(text || '')) return {ok: false, msg: 'Скриптээс HTML хуудас ирлээ (нэвтрэх хуудас эсвэл алдаа). Хандах эрх «Все» эсэх, Code.gs бүтэн хадгалагдсан эсэхийг шалгаад шинэ хувилбараар дахин байршуулна уу.'};
     return {ok: false, msg: 'Скриптийн хариу танигдсангүй (HTTP ' + (res && res.status) + ').'};
@@ -125,7 +125,7 @@
       else {
         try { localStorage.setItem('ws_tkey', R.key); } catch(e){}
         R.codes = j.codes || R.codes || [];
-        loadGoals();
+        loadGoals(); loadRosters();
         if(Array.isArray(j.rows)) R.all = j.rows;
         else {
           const q = R.codes.map(c => c.code), out = [], n = q.length; let done = 0;
@@ -136,6 +136,48 @@
       }
     } catch(e){ R.error = 'Хүснэгттэй холбогдож чадсангүй. Доорх «Холболт шалгах» товчийг дарж шалтгааныг харна уу.'; }
     R.loading = false; renderResults();
+  }
+
+  window.resultsReset = () => { Object.assign(R, {codes: null, rows: null, all: null, code: '', stu: '', goals: null, goalsOld: false, rosters: null, rostersOld: false, note: '', diag: null}); if(S.mode === 'results') renderResults(); };
+
+  /* ---------- Ангийн нэрсийн жагсаалт (багш) ---------- */
+  async function loadRosters(){
+    try { const j = await api({key: R.key, action: 'rosters'}); R.rosters = j && j.ok && Array.isArray(j.rosters) ? j.rosters : null; R.rostersOld = !(j && j.ok && Array.isArray(j.rosters)); }
+    catch(e){ R.rosters = null; R.rostersOld = true; }
+    if(!R.loading) renderResults();
+  }
+  async function saveRoster(group, names){
+    R.rosterMsg = 'Хадгалж байна…'; renderResults();
+    try {
+      const j = await (await fetch(URL0(), {method: 'POST', body: JSON.stringify({action: 'setroster', key: R.key, group, names})})).json();
+      if(j && j.ok && Array.isArray(j.rosters)){ R.rosters = j.rosters; const n = (j.rosters.find(x => NK(x.label) === NK(group)) || {names: []}).names.length; R.rosterMsg = n ? `«${group}» бүлгийн ${n} сурагчийн нэр хадгалагдлаа. Сурагчид бүлгээ бичмэгц нэрээ жагсаалтаас сонгоно.` : `«${group}» бүлгийн жагсаалтыг устгалаа.`; R.rosterEdit = null; }
+      else R.rosterMsg = j && j.error === 'key' ? 'Нууц үг буруу байна.' : 'Хадгалж чадсангүй. Apps Script-ээ шинэчилсэн (v5) эсэхээ шалгана уу.';
+    } catch(e){ R.rosterMsg = 'Хүснэгттэй холбогдож чадсангүй.'; }
+    renderResults();
+  }
+  const rosterOf = grp => (R.rosters || []).find(x => NK(x.label) === NK(grp));
+  /* Жагсаалтад байгаа ч ажил илгээгээгүй сурагчид. rows: тухайн хүрээний дүнгүүд, groups: бүлгийн нэрс */
+  function missingHTML(rows, groups, title){
+    if(!R.rosters || !groups.length) return '';
+    const have = new Set(rows.map(r => NK(r.name) + '|' + NK(r.group)));
+    const parts = groups.map(gname => { const ro = rosterOf(gname); if(!ro) return ''; const miss = ro.names.filter(n => !have.has(NK(n) + '|' + NK(gname)));
+      return miss.length ? `<li><b>${esc(ro.label)}</b> (${miss.length}/${ro.names.length}): ${miss.map(esc).join(', ')}</li>` : `<li><b>${esc(ro.label)}</b>: бүх сурагч илгээсэн ✓</li>`; }).filter(Boolean);
+    return parts.length ? `<h3 class="res-h3">${title}</h3><ul class="missing">${parts.join('')}</ul>` : '';
+  }
+  function rosterHTML(M){
+    if(R.rostersOld) return `<h3 class="res-h3">Ангийн нэрсийн жагсаалт</h3><p class="small">Энэ боломжийг ашиглахын тулд apps-script/Code.gs-ийн шинэ кодыг (v5) хуулж тавиад «Новая версия» болгон дахин байршуулна уу.</p>`;
+    if(!R.rosters) return '';
+    const ed = R.rosterEdit || {group: (M.groups.find(([k]) => k === R.cgrp) || [, ''])[1], names: ''};
+    const list = R.rosters.map(r => `<li><b>${esc(r.label)}</b> · ${r.names.length} сурагч <button class="linkbtn small" type="button" data-rosteredit="${esc(r.label)}">Засах</button></li>`).join('');
+    return `<h3 class="res-h3">Ангийн нэрсийн жагсаалт</h3>
+      <p class="small">Сурагчид нэрээ гараар бичихийн оронд жагсаалтаас сонгоно. Ингэвэл «Ану», «О. Ану» гэх мэт зөрүүгээс болж түүх тасрахгүй, мөн ажил илгээгээгүй сурагчид харагдана. Жагсаалтыг холбоостой хэн ч харж болох тул нэрийг «Ану О.» гэх мэт товч бичихийг зөвлөж байна.</p>
+      ${list ? `<ul class="rosters">${list}</ul>` : ''}
+      <form class="roster-form" id="rosterForm">
+        <label class="f">Бүлэг<input id="rGroup" maxlength="20" placeholder="9а" value="${esc(ed.group)}"></label>
+        <label class="f roster-names">Нэрс (мөр бүрт нэг нэр, Excel-ээс хуулж тавьж болно)<textarea id="rNames" rows="6" placeholder="Ану О.&#10;Бат-Эрдэнэ Г.&#10;…">${esc(ed.names)}</textarea></label>
+        <div class="row"><button class="btn" type="submit">Жагсаалт хадгалах</button><span class="small">Нэрсийг бүгдийг арилгаж хадгалбал жагсаалт устна.</span></div>
+      </form>
+      ${R.rosterMsg ? `<div class="status" role="status">${esc(R.rosterMsg)}</div>` : ''}`;
   }
 
   /* ---------- Ангийн хамтын зорилго (багш) ---------- */
@@ -260,7 +302,7 @@
     const watch = students.filter(s => s.flags.length || (s.avg != null && s.avg < 50)).sort((a, b) => (b.base - a.base) || (a.avg - b.avg));
     return {grades, groups, cols, colName, students, colAvg, watch, rs};
   }
-  const repLink = (g, ch, l) => location.origin + location.pathname + `#s-${g}-${ch ? 100 + ch : 0}-${l}-5+5-${1000 + Math.floor(Math.random() * 98000)}`;
+  const repLink = (g, ch, l) => location.origin + location.pathname + `#s-${g}-${ch ? 100 + ch : 0}-${l}-5+5-${1000 + Math.floor(Math.random() * 98000)}` + linkTag();
   const flagBtn = (f, g) => `<button class="flag ${f.kind}" type="button" data-replink="${g}|${f.ch}|${f.l}" title="Энэ нэгж, түвшний давтлагын хуудасны холбоосыг хуулах">${f.kind === 'down' ? '↓ ' : ''}${esc(f.text)}</button>`;
   function viewSwitch(){
     return `<div class="seg res-view" role="group" aria-label="Дүнг харах хэлбэр"><button type="button" data-rview="class" aria-pressed="${R.view === 'class'}">Ангийн хүснэгт</button><button type="button" data-rview="codes" aria-pressed="${R.view === 'codes'}">Код бүрээр</button></div>`;
@@ -269,7 +311,7 @@
     const M = classModel(), g = R.cg;
     const head = `<div class="res-head"><h2 class="p-topic" style="font-size:24px;margin:0">Ангийн дүнгийн хүснэгт</h2>
         <div class="row"><button class="btn ghost" id="resReloadAll" type="button">Шинэчлэх</button><button class="btn ghost" id="resLogout" type="button">Гарах</button></div></div>${viewSwitch()}`;
-    if(!M.grades.length) return `<section class="paper res">${head}<p>Одоогоор илгээсэн дүн алга. Сурагчдад холбоос өгсний дараа энд гарна.</p>${diagHTML()}</section>`;
+    if(!M.grades.length) return `<section class="paper res">${head}<p>Одоогоор илгээсэн дүн алга. Сурагчдад холбоос өгсний дараа энд гарна.</p>${goalsHTML(M)}${rosterHTML(M)}${diagHTML()}</section>`;
     const filt = `<div class="res-tools">
         <label class="f inline">Анги <select id="cGrade">${M.grades.map(x => `<option value="${x}" ${x === g ? 'selected' : ''}>${x}-р анги</option>`).join('')}</select></label>
         <label class="f inline">Бүлэг <select id="cGroup"><option value="">Бүх бүлэг</option>${M.groups.map(([k, v]) => `<option value="${esc(k)}" ${k === R.cgrp ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
@@ -292,10 +334,12 @@
       ${M.cols.map(c => `<td class="mx">${[1, 2, 3].map(l => seg(s.cells[c.ch] && s.cells[c.ch][l], l)).join('')}</td>`).join('')}<td class="num ${s.avg == null ? '' : s.avg < 50 ? 'bad' : s.avg >= 80 ? 'ok' : ''}">${s.avg == null ? '—' : s.avg + '%'}</td></tr>`).join('');
     const foot = `<tr class="mx-foot"><td></td><td class="mx-name">Ангийн дундаж</td><td></td>${M.colAvg.map(a => `<td class="mx">${a.map((x, j) => x ? `<i class="lv ${pctCls(x.avg)}" title="${LV[j + 1]}: ${x.avg}%, ${x.n} сурагч">${x.avg}</i>` : `<i class="lv e"></i>`).join('')}</td>`).join('')}<td class="num">${avgAll}%</td></tr>`;
     const legend = `<p class="small mx-legend">Нүд бүрт гурван түвшин: <b>М</b> — мэдлэг, ойлголт, <b>Ч</b> — чадвар, <b>Х</b> — хэрэглээ. Тоо нь сүүлийн оролдлогын хувь. <i class="lv g">80</i> 80%-иас дээш <i class="lv m">65</i> 50–79% <i class="lv b">40</i> 50%-иас доош <i class="lv e"></i> өгөөгүй. Нүдэн дээр хулганаар заахад бүх оролдлого харагдана.</p>`;
-    return `<section class="paper res">${head}${filt}${stats}${watch}${units}
+    const grpNames = R.cgrp ? M.groups.filter(([k]) => k === R.cgrp).map(x => x[1]) : (R.rosters || []).map(r => r.label).filter(l => M.groups.some(([k]) => k === NK(l)));
+    const miss = missingHTML(M.rs, grpNames, 'Нэг ч ажил илгээгээгүй сурагчид');
+    return `<section class="paper res">${head}${filt}${stats}${miss}${watch}${units}
       <h3 class="res-h3">Сурагч × нэгж</h3>${legend}
       <div class="tbl-wrap"><table class="rtable mxt"><thead><tr><th class="num">№</th><th class="mx-name">Нэр</th><th>Бүлэг</th>${th}<th class="num">Дундаж</th></tr></thead><tbody>${body}${foot}</tbody></table></div>
-      ${R.note ? `<div class="status ok" role="status">${esc(R.note)}</div>` : ''}${goalsHTML(M)}${diagHTML()}</section>`;
+      ${R.note ? `<div class="status ok" role="status">${esc(R.note)}</div>` : ''}${goalsHTML(M)}${rosterHTML(M)}${diagHTML()}</section>`;
   }
   function studentHTML(){
     const M = classModel(), s = M.students.find(x => x.k === R.stu);
@@ -333,7 +377,7 @@
         <li>Google Sheets дээр шинэ хүснэгт үүсгээд <b>Extensions → Apps Script</b> нээнэ.</li>
         <li>Сайтын код доторх <code>apps-script/Code.gs</code> файлын агуулгыг хуулж тавиад <code>TEACHER_KEY</code>-г өөрийн нууц үгээр солино.</li>
         <li><b>Deploy → New deployment → Web app</b>, <i>Execute as: Me</i>, <i>Who has access: Anyone</i> сонгоод байршуулна.</li>
-        <li>Гарсан <code>…/exec</code> хаягийг GitHub дээрх <code>js/config.js</code> файлын <code>RESULTS_URL</code>-д хуулж хадгална.</li>
+        <li>Гарсан <code>…/exec</code> хаягийг зүүн талын <b>«Дүн хүлээн авах хүснэгт»</b> хэсэгт оруулаад «Хадгалах» дарна. Энэ хаяг таны сурагчдын холбоос, QR код руу автоматаар шингэнэ.</li>
       </ol>
       <p class="small">Дэлгэрэнгүй заавар README.md-ийн «Дүн цуглуулах» хэсэгт байна.</p></section>`;
   }
@@ -390,7 +434,7 @@
         <button class="btn ghost" type="button" data-grplink="${pc.grade}|${pc.topic}|${l}" ${G[l].length ? '' : 'disabled'}>Бүлгийн холбоос хуулах</button></div>`).join('')}</div>`;
   }
   async function copyGrp(spec){
-    const [g, t, l] = spec.split('|').map(Number), url = location.origin + location.pathname + `#s-${g}-${t}-${l}-5+5-${1000 + Math.floor(Math.random() * 98000)}`;
+    const [g, t, l] = spec.split('|').map(Number), url = location.origin + location.pathname + `#s-${g}-${t}-${l}-5+5-${1000 + Math.floor(Math.random() * 98000)}` + linkTag();
     let ok = false; try { await navigator.clipboard.writeText(url); ok = true; } catch(e){}
     R.note = (ok ? `«${LV[l]}» бүлгийн холбоос хуулагдлаа: ` : `«${LV[l]}» бүлгийн холбоос: `) + url; renderResults();
   }
@@ -422,7 +466,7 @@
       ${weakItems.length ? `<p class="small">Ангиараа давтах шаардлагатай: <b>${weakItems.join(', ')}</b>-р даалгавар (50%-иас бага зөв).</p>` : '<p class="small">Бүх даалгаврыг сурагчдын талаас илүү нь зөв гүйцэтгэжээ.</p>'}
       <div class="res-tools"><label class="check"><input type="checkbox" id="resFirst" ${R.firstOnly ? 'checked' : ''}> Зөвхөн эхний оролдлого${all !== n || !R.firstOnly ? '' : ''}</label>
         <label class="f" style="flex-direction:row;align-items:center;gap:8px">Эрэмбэ <select id="resSort"><option value="name" ${R.sort === 'name' ? 'selected' : ''}>Бүлэг, нэрээр</option><option value="score" ${R.sort === 'score' ? 'selected' : ''}>Оноогоор</option></select></label></div>
-      ${mistakesHTML(rows)}${groupsHTML(R.rows || [])}${R.note ? `<div class="status ok" role="status">${esc(R.note)}</div>` : ''}
+      ${missingHTML(R.rows || [], [...new Set((R.rows || []).map(r => String(r.group).trim()).filter(Boolean))], 'Энэ ажлыг илгээгээгүй сурагчид')}${mistakesHTML(rows)}${groupsHTML(R.rows || [])}${R.note ? `<div class="status ok" role="status">${esc(R.note)}</div>` : ''}
       <div class="tbl-wrap"><table class="rtable"><thead><tr><th class="num">№</th><th>Нэр</th><th>Бүлэг</th><th class="num">Оноо</th><th class="num">%</th><th>Даалгавар (ногоон — зөв)</th><th class="num">Мин</th><th class="num">Оролд.</th><th>Огноо</th></tr></thead><tbody>${body}</tbody></table></div>`
       : '<p>Энэ кодоор илгээсэн дүн алга.</p>'}
     </section>`;
@@ -447,7 +491,8 @@
   }
 
   on('tabResults', 'click', () => { S.mode = 'results'; render(); if(URL0() && R.key && !R.codes && !R.all && !R.loading) (R.view === 'class' ? loadAll() : loadCodes()); });
-  document.addEventListener('submit', e => { if(e.target.id === 'goalForm'){ e.preventDefault(); const grp = ($('gGroup').value || '').trim(); if(!grp) return; const ex = (R.goals || []).some(g => NK(g.label) === NK(grp)); saveGoal(grp, Number($('gTarget').value) || 0, $('gTitle').value.trim(), ex && !confirm('Энэ бүлэгт зорилго аль хэдийн байна. Тоолохыг тэгээс шинээр эхлүүлэх үү? («Цуцлах» дарвал өмнөх тоо хадгалагдаж зөвхөн зорилго шинэчлэгдэнэ)')); return; }
+  document.addEventListener('submit', e => { if(e.target.id === 'rosterForm'){ e.preventDefault(); const grp = ($('rGroup').value || '').trim(); if(!grp){ $('rGroup').focus(); return; } saveRoster(grp, $('rNames').value); return; }
+    if(e.target.id === 'goalForm'){ e.preventDefault(); const grp = ($('gGroup').value || '').trim(); if(!grp) return; const ex = (R.goals || []).some(g => NK(g.label) === NK(grp)); saveGoal(grp, Number($('gTarget').value) || 0, $('gTitle').value.trim(), ex && !confirm('Энэ бүлэгт зорилго аль хэдийн байна. Тоолохыг тэгээс шинээр эхлүүлэх үү? («Цуцлах» дарвал өмнөх тоо хадгалагдаж зөвхөн зорилго шинэчлэгдэнэ)')); return; }
     if(e.target.id === 'keyForm'){ e.preventDefault(); R.key = $('tkey').value.trim(); if(R.key) (R.view === 'class' ? loadAll() : loadCodes()); } });
   document.addEventListener('click', e => {
     const c = e.target.closest('[data-rcode]'); if(c){ R.note = ''; loadCode(c.dataset.rcode); return; }
@@ -461,6 +506,7 @@
     if(e.target.closest('#cCsv')){ classCsv(); return; }
     const rb = e.target.closest('#cReports'); if(rb){ exportReports(classModel().students, rb); return; }
     const sr = e.target.closest('#stuReport'); if(sr){ const s = classModel().students.find(x => x.k === R.stu); if(s) exportReports([s], sr); return; }
+    const re = e.target.closest('[data-rosteredit]'); if(re){ const ro = rosterOf(re.dataset.rosteredit); if(ro){ R.rosterEdit = {group: ro.label, names: ro.names.join('\n')}; R.rosterMsg = ''; renderResults(); const t = $('rNames'); if(t){ t.scrollIntoView({block: 'center'}); t.focus(); } } return; }
     const gd = e.target.closest('[data-goaldel]'); if(gd){ if(confirm(`«${gd.dataset.goaldel}» бүлгийн зорилгыг устгах уу?`)) saveGoal(gd.dataset.goaldel, 0, '', false); return; }
     if(e.target.closest('#resReload')){ loadCodes(); return; }
     if(e.target.closest('#resReloadCode')){ loadCode(R.code); return; }

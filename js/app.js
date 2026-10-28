@@ -20,6 +20,14 @@ function parseCode(str){
 }
 function applyCode(r){ Object.assign(S, {grade: r.grade, topic: r.topic, level: r.level, seed: r.seed}); if(r.mc != null){ S.mc = r.mc; S.op = r.op; S.legacy = null; } else applyLegacy(r.count, r.form); }
 const $ = id => document.getElementById(id);
+/* Дүн хүлээн авах хаяг. Эрэмбэ: сурагчийн холбоос дахь @ID → энэ хөтөч дээр багшийн оруулсан хаяг → js/config.js.
+   Ингэснээр нэг сайтыг олон багш тус тусын Google хүснэгттэйгээр ашиглана. */
+const scriptURL = id => `https://script.google.com/macros/s/${id}/exec`;
+const scriptId = url => { const m = String(url || '').trim().match(/^https:\/\/script\.google\.com\/(?:a\/macros\/[^/]+|macros)\/s\/([A-Za-z0-9_-]{20,140})\/exec$/); return m ? m[1] : ''; };
+let linkSid = '';
+function resultsURL(){ if(linkSid) return scriptURL(linkSid); let u = ''; try { u = localStorage.getItem('ws_rurl') || ''; } catch(e){} return (u || (window.APP_CONFIG || {}).RESULTS_URL || '').trim(); }
+window.resultsURL = resultsURL;
+const linkTag = () => { const id = scriptId(resultsURL()); return id ? '@' + id : ''; };
 /* Элемент байхгүй (index.html хуучин хувилбартай) үед бүх хуудас зогсохоос сэргийлнэ */
 const on = (id, ev, fn) => { const el = $(id); if(el) el.addEventListener(ev, fn); else missingParts.add('index.html'); };
 const missingParts = new Set();
@@ -228,7 +236,7 @@ function render(){
       <div class="who">${esc(stWho())} · Код ${code()} · ${esc(S.doneAt || '')}</div>
       ${S.timedOut ? '<div class="status err">Хугацаа дууссан тул хариуг автоматаар шалгаж илгээлээ.</div>' : ''}
       ${miss.length ? `<div class="small">Алдсан эсвэл хоосон: ${miss.join(', ')}-р даалгавар. Тэдгээрийн доор «${S.allowReveal ? 'Бодолтыг харах' : 'Бодох арга'}» гэсэн тайлбар бий.</div>` : '<div class="small">Бүх даалгавар зөв. Баяр хүргэе!</div>'}
-      ${window.APP_CONFIG && APP_CONFIG.RESULTS_URL ? '' : '<div class="small">Үр дүнгээ «Мессежээр илгээх» товчоор багшдаа илгээнэ үү, эсвэл энэ дэлгэцийн зургийг авна уу.</div>'}
+      ${resultsURL() ? '' : '<div class="small">Үр дүнгээ «Мессежээр илгээх» товчоор багшдаа илгээнэ үү, эсвэл энэ дэлгэцийн зургийг авна уу.</div>'}
       ${window.sendStateHTML ? sendStateHTML() : ''}
       ${window.MOTIV ? MOTIV.resultHTML(pct) : ''}
       ${S.daily ? '<p class="small">Маргааш шинэ бодлого гарна. Энэ холбоосоороо дахин ороорой.</p>' : pathHTML(pct)}
@@ -245,8 +253,14 @@ function render(){
   save();
 }
 
+/* Нэр дутуу: нэрсийн жагсаалттай бол сонгох талбарыг, үгүй бол бичих талбарыг заана */
+function needName(){
+  const sel = document.getElementById('stNameSel'), el = sel && $('stName').style.display === 'none' ? sel : $('stName');
+  el.setCustomValidity(el === sel ? 'Нэрээ жагсаалтаас сонгоно уу' : 'Нэрээ бичнэ үү'); el.reportValidity(); el.focus();
+  el.addEventListener(el === sel ? 'change' : 'input', () => el.setCustomValidity(''), {once: true});
+}
 function check(force){
-  if(S.student && !force && !$('stName').value.trim()){ $('stName').setCustomValidity('Нэрээ бичнэ үү'); $('stName').reportValidity(); $('stName').focus(); return; }
+  if(S.student && !force && !$('stName').value.trim()){ needName(); return; }
   if(S.student){ const d = new Date(), z = n => String(n).padStart(2, '0'); S.doneAt = `${d.getFullYear()}.${z(d.getMonth() + 1)}.${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`; }
   S.results = S.items.map((p, i) => p.mc ? (S.choice[i] == null ? null : S.choice[i] === p.ci) : W.check(p, S.answers[i]));
   S.checked = true; stopTimer(); render();
@@ -321,7 +335,7 @@ on('clearBtn', 'click', () => { S.answers = {}; S.choice = {}; S.checked = false
 on('pdfBtn', 'click', exportPDF);
 
 /* ---------- Сурагчдад цахимаар өгөх ---------- */
-const shareURL = () => { const t = Number(($('shareTime') || {}).value || 0); return location.href.split('#')[0] + '#' + ($('shareReveal').checked ? 'sr-' : 's-') + code() + (t > 0 ? '~' + t : ''); };
+const shareURL = () => { const t = Number(($('shareTime') || {}).value || 0); return location.href.split('#')[0] + '#' + ($('shareReveal').checked ? 'sr-' : 's-') + code() + (t > 0 ? '~' + t : '') + linkTag(); };
 function updateShare(){
   if(S.student) return;
   const url = shareURL(); $('shareLink').value = url;
@@ -361,7 +375,7 @@ function renderStudent(){
   $('clearBtn').hidden = S.checked;
   $('checkBtn').hidden = S.checked;
 }
-['stName', 'stClass'].forEach(id => $(id).addEventListener('input', () => { $(id).setCustomValidity(''); const sp = document.getElementById('sbPath'); if(sp && !S.checked) sp.innerHTML = ladderHTML(loadPath()); try { localStorage.setItem('ws_student', JSON.stringify({n: $('stName').value, c: $('stClass').value})); } catch(e){} }));
+['stName', 'stClass'].forEach(id => $(id).addEventListener('input', () => { $(id).setCustomValidity(''); const sp = document.getElementById('sbPath'); if(sp && !S.checked) sp.innerHTML = (S.daily ? '' : ladderHTML(loadPath())) + (window.MOTIV ? MOTIV.barHTML() : ''); try { localStorage.setItem('ws_student', JSON.stringify({n: $('stName').value, c: $('stClass').value})); } catch(e){} }));
 document.addEventListener('click', async e => {
   if(!e.target.closest('#sendResult')) return;
   const ok = S.results.filter(x => x === true).length, n = S.items.length;
@@ -400,7 +414,7 @@ function savePath(){
 function nextURL(level){
   const nmc = S.items.filter(p => p.mc).length, nop = S.items.length - nmc;
   const seed = 1000 + Math.floor(Math.random() * 98000);
-  return location.pathname + location.search + `#${S.allowReveal ? 'sr' : 's'}-${S.grade}-${S.topic}-${level}-${nmc}+${nop}-${seed}${S.limit ? '~' + S.limit : ''}`;
+  return location.pathname + location.search + `#${S.allowReveal ? 'sr' : 's'}-${S.grade}-${S.topic}-${level}-${nmc}+${nop}-${seed}${S.limit ? '~' + S.limit : ''}${linkTag()}`;
 }
 function ladderHTML(best){
   return `<ol class="ladder" aria-label="Түвшнээр ахих зам">${[1, 2, 3].map(l => { const b = best[l], st = b >= PASS ? 'done' : l === S.level ? 'now' : '';
@@ -450,7 +464,7 @@ function initRun(){
   render();
 }
 on('startBtn', 'click', () => {
-  if(!$('stName').value.trim()){ $('stName').setCustomValidity('Нэрээ бичнэ үү'); $('stName').reportValidity(); $('stName').focus(); return; }
+  if(!$('stName').value.trim()){ needName(); return; }
   S.runStart = Date.now(); saveRun({start: S.runStart}); startTimer();
 });
 document.addEventListener('click', e => { if(S.student && e.target.closest('[data-mc]')) setTimeout(() => saveRun(), 0); });
@@ -459,11 +473,13 @@ on('sheet', 'change', () => { if(S.student) saveRun(); });
 load();
 /* Өдрийн бодлого: #d-9 → өнөөдрийн огнооноос тогтох нэг задгай даалгавар (чадварын түвшин). Ангийн бүх сурагчид ижил. */
 function dailyHash(){
-  const m = (location.hash || '').match(/^#d-(\d{1,2})$/); if(!m || !W.GRADES.includes(+m[1])) return null;
+  const m = (location.hash || '').match(/^#d-(\d{1,2})(?:@([A-Za-z0-9_-]{20,140}))?$/); if(!m || !W.GRADES.includes(+m[1])) return null;
+  if(m[2]) linkSid = m[2];
   const g = +m[1], d = new Date(), n = W.topicsOf(g).length, day = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5);
   S.daily = true; return `#s-${g}-${1 + (day * 37) % n}-2-0+1-${(d.getFullYear() % 100) * 10000 + (d.getMonth() + 1) * 100 + d.getDate()}`;
 }
-const hm = (dailyHash() || location.hash || '').match(/^#(w|s|sr)-([^~]+)(?:~(\d{1,3}))?$/), h = hm && parseCode(decodeURIComponent(hm[2]));
+const hm = (dailyHash() || location.hash || '').match(/^#(w|s|sr)-([^~@]+)(?:~(\d{1,3}))?(?:@([A-Za-z0-9_-]{20,140}))?$/), h = hm && parseCode(decodeURIComponent(hm[2]));
+if(hm && hm[4]) linkSid = hm[4];
 S.limit = hm && hm[3] ? Math.min(240, Number(hm[3])) : 0;
 if(h && W.GRADES.includes(h.grade)){
   applyCode(h); S.mode = 'online';

@@ -183,7 +183,7 @@
       <button class="btn ghost wide" id="dailyCopy" type="button">Өдрийн бодлогын холбоос хуулах</button><div class="status" id="dailyStatus" hidden></div>`;
     sp.appendChild(box);
     document.getElementById('dailyCopy').addEventListener('click', async () => {
-      const url = location.href.split('#')[0] + '#d-' + S.grade, ok = await copyText(url);
+      const url = location.href.split('#')[0] + '#d-' + S.grade + linkTag(), ok = await copyText(url);
       shareSay('dailyStatus', ok ? `${S.grade}-р ангийн өдрийн бодлогын холбоос хуулагдлаа: ${url}` : 'Хуулж чадсангүй: ' + url, ok ? 'ok' : 'err');
     });
   }

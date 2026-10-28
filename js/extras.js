@@ -67,8 +67,68 @@
     tools.appendChild(b);
   }
 
+  /* ---------- Багш: дүн хүлээн авах хаяг (багш бүр өөрийн хүснэгт) ---------- */
+  const shareP = document.getElementById('sharePanel');
+  if(shareP && !S.student){
+    const sec = document.createElement('section'); sec.className = 'panel'; sec.id = 'rurlPanel';
+    let saved = ''; try { saved = localStorage.getItem('ws_rurl') || ''; } catch(e){}
+    sec.innerHTML = `<h2>Дүн хүлээн авах хүснэгт</h2>
+      <p class="small" style="margin:0">Багш бүр өөрийн Google хүснэгттэй ажиллана. Apps Script-ийн «…/exec» хаягаа энд нэг удаа оруулахад таны сурагчдын холбоос, QR код руу автоматаар шингэнэ. Дүн зөвхөн таны хүснэгтэд очно.</p>
+      <label class="f" for="rurlIn">Apps Script хаяг<input type="url" id="rurlIn" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(saved)}" autocomplete="off" spellcheck="false"></label>
+      <div class="row"><button class="btn" id="rurlSave" type="button">Хадгалах</button><button class="btn ghost" id="rurlClear" type="button">Арилгах</button></div>
+      <div class="status" id="rurlStatus"></div>`;
+    shareP.parentNode.insertBefore(sec, shareP);
+    const st = document.getElementById('rurlStatus');
+    const srcText = () => { let u = ''; try { u = localStorage.getItem('ws_rurl') || ''; } catch(e){} const cfg = ((window.APP_CONFIG || {}).RESULTS_URL || '').trim();
+      return u ? 'Таны оруулсан хаяг ашиглагдаж байна. Сурагчдын холбоос энэ хүснэгт рүү дүн илгээнэ.' : cfg ? 'Сайтын үндсэн хаяг (js/config.js) ашиглагдаж байна. Өөр багш бол өөрийн хаягаа оруулна уу.' : 'Хаяг оруулаагүй байна. Сурагчдын дүн автоматаар цуглахгүй, зөвхөн мессежээр илгээгдэнэ.'; };
+    const say = (t, c) => { st.className = 'status ' + (c || ''); st.textContent = t; };
+    say(srcText());
+    const after = () => { if(typeof updateShare === 'function') updateShare(); if(window.resultsReset) window.resultsReset(); };
+    document.getElementById('rurlSave').addEventListener('click', async () => {
+      const v = document.getElementById('rurlIn').value.trim();
+      if(!scriptId(v)){ say('Хаяг «https://script.google.com/macros/s/…/exec» хэлбэртэй байх ёстой. Apps Script → Начать развертывание → Управление развертываниями хэсгээс хуулна уу.', 'err'); return; }
+      try { localStorage.setItem('ws_rurl', v); } catch(e){}
+      after(); say('Хадгалагдлаа. Холболтыг шалгаж байна…');
+      try { const j = await (await fetch(v + '?action=ping')).json();
+        say(j && j.ok && j.app === 'ajlyn-khuudas' ? `Хадгалагдлаа ✓ Холболт хэвийн (v${j.v || 1}). Одоо «Холбоос хуулах»-аар авсан холбоос таны хүснэгт рүү дүн илгээнэ.` : 'Хадгалагдлаа, гэхдээ скриптээс зөв хариу ирсэнгүй. Code.gs бүтэн хуулагдсан эсэхийг шалгана уу.', j && j.ok ? 'ok' : 'err');
+      } catch(e){ say('Хадгалагдлаа, гэхдээ скрипт рүү холбогдож чадсангүй. Байршуулалтын «У кого есть доступ» нь «Все» эсэхийг шалгана уу.', 'err'); }
+    });
+    document.getElementById('rurlClear').addEventListener('click', () => { try { localStorage.removeItem('ws_rurl'); } catch(e){} document.getElementById('rurlIn').value = ''; after(); say(srcText()); });
+  }
+
+  /* ---------- Сурагч: ангийн нэрсийн жагсаалтаас нэрээ сонгох ---------- */
+  const normN = v => String(v || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  function applyRoster(names){
+    const inp = $('stName'); if(!inp) return; let sel = document.getElementById('stNameSel');
+    if(!names){ if(sel) sel.remove(); inp.style.display = ''; return; }
+    if(!sel){
+      sel = document.createElement('select'); sel.id = 'stNameSel'; sel.setAttribute('aria-label', 'Нэрээ жагсаалтаас сонгоно уу');
+      inp.insertAdjacentElement('afterend', sel);
+      sel.addEventListener('change', () => {
+        if(sel.value === '__other'){ inp.style.display = ''; inp.value = ''; inp.focus(); }
+        else { inp.style.display = 'none'; inp.value = sel.value; }
+        inp.dispatchEvent(new Event('input'));
+      });
+    }
+    const cur = normN(inp.value), hit = names.find(n => normN(n) === cur);
+    sel.innerHTML = '<option value="">— Нэрээ сонгоно уу —</option>' + names.map(n => `<option${hit === n ? ' selected' : ''}>${esc(n)}</option>`).join('') + '<option value="__other">Миний нэр жагсаалтад алга</option>';
+    if(hit){ inp.style.display = 'none'; inp.value = hit; } else if(cur){ sel.value = '__other'; inp.style.display = ''; } else inp.style.display = 'none';
+    sel.disabled = inp.disabled;
+  }
+  async function loadRoster(){
+    const grp = (($('stClass') || {}).value || '').trim();
+    if(!S.student || !URL0() || !grp){ applyRoster(null); return; }
+    try { const j = await (await fetch(URL0() + (URL0().includes('?') ? '&' : '?') + new URLSearchParams({action: 'roster', group: grp}))).json();
+      applyRoster(j && j.ok && Array.isArray(j.names) && j.names.length ? j.names : null);
+    } catch(e){ /* хуучин скрипт эсвэл интернэтгүй: нэрээ бичнэ */ }
+  }
+  if(S.student && typeof window.renderStudent === 'function'){
+    const rs = window.renderStudent;
+    window.renderStudent = function(){ rs.apply(this, arguments); const sel = document.getElementById('stNameSel'); if(sel) sel.disabled = S.checked; };
+  }
+
   /* ---------- Ангийн хамтын зорилго (сурагчид) ---------- */
-  const URL0 = () => ((window.APP_CONFIG || {}).RESULTS_URL || '').trim();
+  const URL0 = () => window.resultsURL ? window.resultsURL() : '';
   let goalT = null;
   async function loadGoal(){
     const bar = document.getElementById('studentBar'), grp = (($('stClass') || {}).value || '').trim();
@@ -87,8 +147,8 @@
     } catch(e){ /* скрипт хуучин эсвэл интернэтгүй: зорилгыг харуулахгүй */ }
   }
   if(S.student){
-    setTimeout(loadGoal, 400);
-    const sc = document.getElementById('stClass'); if(sc) sc.addEventListener('input', () => { clearTimeout(goalT); goalT = setTimeout(loadGoal, 900); });
+    setTimeout(() => { loadGoal(); loadRoster(); }, 400);
+    const sc = document.getElementById('stClass'); if(sc) sc.addEventListener('input', () => { clearTimeout(goalT); goalT = setTimeout(() => { loadGoal(); loadRoster(); }, 900); });
     const cb = document.getElementById('checkBtn'); if(cb) cb.addEventListener('click', () => setTimeout(loadGoal, 3500));
   }
 })();

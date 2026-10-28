@@ -493,3 +493,14 @@ body.pj-open{overflow:hidden}
 .rep-qr img,.rep-qr svg{width:100%;height:auto;image-rendering:pixelated}
 .rep-note{font-size:11px;color:#5B6B66;margin-top:14px!important}
 .rep-sign{display:flex;justify-content:space-between;margin-top:18px;font-size:12px}
+#stNameSel{width:100%;font:inherit;font-size:16px;padding:9px 10px;min-height:44px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}
+#stNameSel:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+.missing,.rosters{margin:0;padding-left:20px;font-family:var(--ui);font-size:14px;display:flex;flex-direction:column;gap:4px}
+.roster-form{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;font-family:var(--ui)}
+.roster-form .f{flex:1 1 140px}
+.roster-form .roster-names{flex:3 1 320px}
+.roster-form textarea{font:inherit;font-size:15px;padding:8px 10px;border:1.5px solid var(--paper-line);border-radius:8px;width:100%;box-sizing:border-box;resize:vertical}
+.roster-form .row{flex:1 1 100%;align-items:center;gap:12px}
+.goal-form input,.roster-form input{font:inherit;font-size:15px;padding:9px 10px;min-height:42px;border:1.5px solid var(--paper-line);border-radius:8px;width:100%;box-sizing:border-box;background:var(--paper);color:var(--paper-ink)}
+.goal-form input:focus-visible,.roster-form input:focus-visible,.roster-form textarea:focus-visible{outline:3px solid #22614C;outline-offset:1px}
+.roster-form{align-items:flex-start}

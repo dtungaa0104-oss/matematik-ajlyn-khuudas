@@ -63,6 +63,14 @@ function doPost(e) {
   try {
     lock.waitLock(20000);
     const d = JSON.parse(e.postData.contents);
+    if (d.action === 'setroster') {                       // багш: ангийн нэрсийн жагсаалт хадгалах
+      if (d.key !== TEACHER_KEY) return out_({ ok: false, error: 'key' });
+      const k = rosterKey_(d.group || ''); if (!norm_(d.group || '')) return out_({ ok: false, error: 'group' });
+      const seen = {}, names = String(d.names || '').split(/\r?\n/).map(x => clean_(x, 60)).filter(x => x && !seen[norm_(x)] && (seen[norm_(x)] = 1)).slice(0, 200);
+      const pr = PropertiesService.getScriptProperties();
+      if (!names.length) pr.deleteProperty(k); else pr.setProperty(k, JSON.stringify({ label: clean_(d.group, 20), names: names }));
+      return out_({ ok: true, rosters: listRosters_() });
+    }
     const code = String(d.code || '');
     if (!CODE_RE.test(code)) return out_({ ok: false, error: 'code' });
     const name = clean_(d.name, 60), group = clean_(d.group, 20);
@@ -91,6 +99,15 @@ function doPost(e) {
   }
 }
 
+/** Ангийн нэрсийн жагсаалт (бүлэг бүрт Script Properties-д тусдаа) */
+function rosterKey_(g) { return 'ROSTER_' + Utilities.base64EncodeWebSafe(norm_(g)).slice(0, 200); }
+function getRoster_(g) { try { return JSON.parse(PropertiesService.getScriptProperties().getProperty(rosterKey_(g)) || 'null'); } catch (e) { return null; } }
+function listRosters_() {
+  const all = PropertiesService.getScriptProperties().getProperties();
+  return Object.keys(all).filter(k => k.indexOf('ROSTER_') === 0).map(k => { try { return JSON.parse(all[k]); } catch (e) { return null; } }).filter(Boolean)
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
 /** Ангийн хамтын зорилгууд (Script Properties-д хадгална) */
 function goals_() { try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('GOALS') || '{}'); } catch (e) { return {}; } }
 /** Зорилго тавьснаас хойш тухайн бүлгийн зөв бодсон даалгаврын нийт тоо */
@@ -105,8 +122,10 @@ function listGoals_() { const G = goals_(); return Object.keys(G).map(k => ({ ke
 /** Багшийн «Дүн» хэсэгт өгөгдөл өгөх (нууц үгтэй) */
 function doGet(e) {
   const p = e.parameter || {};
-  if (p.action === 'ping') return out_({ ok: true, app: 'ajlyn-khuudas', v: 4 });
+  if (p.action === 'ping') return out_({ ok: true, app: 'ajlyn-khuudas', v: 5 });
   // Ангийн хамтын зорилго: сурагчид зөвхөн бүлгийнхээ нийт тоог харна (нэр харагдахгүй)
+  // Ангийн нэрсийн жагсаалт: сурагч нэрээ жагсаалтаас сонгоно
+  if (p.action === 'roster') { const r = getRoster_(p.group || ''); return out_({ ok: true, label: r ? r.label : '', names: r ? r.names : null }); }
   if (p.action === 'goal') {
     const key = norm_(p.group || ''), G = goals_()[key];
     if (!G) return out_({ ok: true, goal: null });
@@ -127,6 +146,7 @@ function doGet(e) {
     missed: String(r[12]), detail: String(r[13]), answers: String(r[14]), attempt: Number(r[15])
   }));
   if (p.action === 'goals') return out_({ ok: true, goals: listGoals_() });
+  if (p.action === 'rosters') return out_({ ok: true, rosters: listRosters_() });
   if (p.action === 'setgoal') {
     const G = goals_(), key = norm_(p.group || '');
     if (!key) return out_({ ok: false, error: 'group' });
