@@ -94,7 +94,42 @@ function controls(){
 
 /* Алхамчилсан бодолт: шалгасны дараа алдсан даалгаврын доор. Сурагчид тоон бодолт зөвхөн багш «зөв хариу харуулах»-ыг зөвшөөрсөн үед,
    бусад үед зөвхөн «Бодох арга» (тоогүй ерөнхий заавар) харагдана. */
-S.solOpen = {};
+S.solOpen = {}; S.hints = {};
+/* Сэжүүр: шалгахаас өмнө бодох арга ба бодолтын эхний алхам (хариуг хэлэхгүй) */
+function hintHTML(p, i){
+  if(S.checked) return '';
+  const meth = (window.METHODS || {})[p.tid], first = p.sol && p.sol.length >= 2 ? p.sol[0] : null;
+  if(!meth && !first) return '';
+  if(!S.hints[i]) return `<button class="hint-btn" type="button" data-hint="${i}">Сэжүүр авах</button>`;
+  return `<div class="hint" role="note"><b>Сэжүүр.</b> ${first ? 'Эхний алхам: ' + Mx(first) : Mx(meth)}</div>`;
+}
+/* Буруу хариултын төрлөөр зөвлөгөө */
+const MIS = {
+  sign: 'Тэмдгээ шалгаарай: хариуны тэмдэг эсрэгээрээ гарсан байж магадгүй.',
+  place: 'Хариу 10 (эсвэл 100) дахин зөрүүтэй байна. Аравтын таслал, нэгжийн шилжүүлгээ шалгаарай.',
+  double: 'Хариу 2 дахин зөрүүтэй байна. 2-оор үржүүлэх, хуваах алхмаа шалгаарай (жишээ нь гурвалжны талбайд ÷ 2).',
+  recip: 'Урвуу тоо гарсан байна. Хуваагдагч, хуваагчийн байрыг сольсон эсэхээ шалгаарай.',
+  round: 'Хариу маш ойрхон байна. Тоймлолт эсвэл аравтын оронгоо шалгаарай.',
+  near: 'Хариу ойрхон байна. Нэмэх, хасах тооцоонд жижиг алдаа гарсан байж магадгүй.',
+  swap: 'Утгуудын байрыг сольсон байна. Дарааллыг (x; y) шалгаарай.',
+  missing: 'Бүх шийдийг олсон эсэхээ шалгаарай.'
+};
+function answerVals(p, s){
+  s = String(s || '').trim().replace(/^[a-zA-Zа-яА-Я]\s*=\s*/, ''); if(!s) return null;
+  if(p.type === 'num') return [W.parseVal(s)];
+  if(/^\(.*\)$/.test(s)) s = s.slice(1, -1);
+  return (s.includes(';') ? s.split(';') : s.split(',')).map(x => W.parseVal(x.replace(/^[a-zA-Z]\s*=\s*/, '')));
+}
+function mistakeKind(p, i){
+  if(p.mc) return S.choice[i] == null ? null : (p.mck || [])[S.choice[i]];
+  const c = answerVals(p, S.answers[i]); return c && W.mkind ? W.mkind(p, c) : null;
+}
+function misHTML(p, i, st){
+  if(!S.checked || st !== false) return '';
+  const k = mistakeKind(p, i); return MIS[k] ? `<div class="mis">${MIS[k]}</div>` : '';
+}
+document.addEventListener('click', e => { const h = e.target.closest('[data-hint]'); if(!h) return; S.hints[h.dataset.hint] = true; if(S.student) saveRun(); render(); const el = document.querySelector(`[data-i="${h.dataset.hint}"]`); if(el) el.focus(); });
+
 function solHTML(p, i, st){
   if(!S.checked || (S.student && st === true)) return '';
   const meth = (window.METHODS || {})[p.tid], steps = p.sol && p.sol.length && (!S.student || S.allowReveal);
@@ -120,12 +155,13 @@ function sheetHTML(items, opts){
       else tail = `<div class="p-mc ${long ? 'long' : ''}" role="group" aria-label="${i + 1}-р даалгаврын сонголт">${p.mc.map((o, k) => {
           const c = S.checked ? (k === p.ci && (S.reveal || st === true) ? 'right' : k === S.choice[i] && st === false ? 'wrong' : '') : '';
           return `<button type="button" class="opt ${c}" id="o${i}-${k}" data-mc="${i}" data-k="${k}" aria-pressed="${S.choice[i] === k}" ${S.checked ? 'disabled' : ''}><b>${LETTER[k]}</b><span>${Mx(o)}</span></button>`; }).join('')}</div>
-        ${S.checked ? `<div class="p-mcv">${verdict(st)}</div>` : ''}`;
+        ${S.checked ? `<div class="p-mcv">${verdict(st)}</div>` : ''}${misHTML(p, i, st)}${mode === 'online' ? hintHTML(p, i) : ''}`;
     } else if(mode === 'print') tail = `<div class="p-work" aria-hidden="true"></div><div class="p-ans">Хариу:<i></i></div>`;
     else {
       tail = `<div class="p-inrow"><input type="text" id="a${i}" data-i="${i}" value="${esc(S.answers[i] || '')}" aria-label="${i + 1}-р даалгаврын хариу" autocomplete="off" spellcheck="false" enterkeyhint="next" ${S.student && S.checked ? 'disabled' : ''}>
         ${p.root ? `<button class="root-btn" type="button" data-root="${i}" ${S.student && S.checked ? 'disabled' : ''} aria-label="Язгуурын тэмдэг оруулах">√</button>` : ''}
         ${verdict(st)}</div>
+        ${misHTML(p, i, st)}${hintHTML(p, i)}
         ${S.checked && S.reveal && st !== true ? `<div class="reveal">Зөв хариу: <b>${Mx(p.show)}</b></div>` : ''}`;
     }
     return `<li class="${cls}"><span class="p-n">${i + 1}.</span><div class="p-q">${Mx(p.q)}</div>${p.fig ? `<div class="p-fig">${p.fig}</div>` : ''}${tail}${mode === 'online' ? solHTML(p, i, st) : ''}</li>`;
@@ -165,7 +201,7 @@ function keyHTML(items, letter, seed){
 
 function build(){
   S.items = W.makeSheet(S.grade, S.topic, S.level, total(), S.seed, formArg());
-  S.answers = {}; S.choice = {}; S.checked = false; S.reveal = false; S.results = []; S.solOpen = {};
+  S.answers = {}; S.choice = {}; S.checked = false; S.reveal = false; S.results = []; S.solOpen = {}; S.hints = {};
   render();
 }
 function render(){
@@ -281,7 +317,7 @@ on('tabPrint', 'click', () => { S.mode = 'print'; render(); });
 on('withKey', 'change', render);
 on('school', 'input', () => { clearTimeout(render.t); render.t = setTimeout(render, 300); });
 on('checkBtn', 'click', () => check());
-on('clearBtn', 'click', () => { S.answers = {}; S.choice = {}; S.checked = false; S.reveal = false; S.solOpen = {}; render(); });
+on('clearBtn', 'click', () => { S.answers = {}; S.choice = {}; S.checked = false; S.reveal = false; S.solOpen = {}; S.hints = {}; render(); });
 on('pdfBtn', 'click', exportPDF);
 
 /* ---------- Сурагчдад цахимаар өгөх ---------- */
@@ -384,7 +420,7 @@ document.addEventListener('click', e => { const a = e.target.closest('a[data-go]
    Явцыг энэ төхөөрөмж дээр (код бүрээр) хадгална: эхэлсэн цаг, нэр, хариу. Хуудсыг дахин ачаалсан ч цаг шинээр эхлэхгүй. */
 const runKey = () => 'ws_run_' + code() + (S.limit ? '~' + S.limit : '');
 function loadRun(){ try { return JSON.parse(localStorage.getItem(runKey()) || 'null') || {}; } catch(e){ return {}; } }
-function saveRun(extra){ if(!S.student) return; try { const r = Object.assign(loadRun(), {answers: S.answers, choice: S.choice, n: $('stName').value, c: $('stClass').value}, extra || {}); localStorage.setItem(runKey(), JSON.stringify(r)); } catch(e){} }
+function saveRun(extra){ if(!S.student) return; try { const r = Object.assign(loadRun(), {answers: S.answers, choice: S.choice, hints: S.hints, n: $('stName').value, c: $('stClass').value}, extra || {}); localStorage.setItem(runKey(), JSON.stringify(r)); } catch(e){} }
 let tickId = null;
 function stopTimer(){ if(tickId){ clearInterval(tickId); tickId = null; } const t = $('timer'); if(t && S.checked) t.hidden = true; }
 function tick(){
@@ -400,7 +436,7 @@ function initRun(){
   if(!S.student) return;
   const r = loadRun();
   if(r.n) $('stName').value = r.n; if(r.c) $('stClass').value = r.c;
-  if(r.answers) S.answers = r.answers; if(r.choice) S.choice = r.choice;
+  if(r.answers) S.answers = r.answers; if(r.choice) S.choice = r.choice; if(r.hints) S.hints = r.hints;
   if(r.done && !S.limit){ S.answers = {}; S.choice = {}; render(); return; } // хугацаагүй горимд дахин бөглөж болно
   if(r.done){ // өмнө нь илгээсэн: үр дүнг харуулж, дахин илгээхгүй
     S.timedOut = !!r.timedOut; S.doneAt = r.doneAt || '';

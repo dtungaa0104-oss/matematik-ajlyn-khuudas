@@ -91,10 +91,30 @@ function doPost(e) {
   }
 }
 
+/** Ангийн хамтын зорилгууд (Script Properties-д хадгална) */
+function goals_() { try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('GOALS') || '{}'); } catch (e) { return {}; } }
+/** Зорилго тавьснаас хойш тухайн бүлгийн зөв бодсон даалгаврын нийт тоо */
+function goalDone_(key, start) {
+  const sh = sheet_(), last = sh.getLastRow(); if (last < 2) return 0;
+  const t0 = new Date(start).getTime(); let sum = 0;
+  sh.getRange(2, 1, last - 1, 9).getValues().forEach(r => { const d = r[0] instanceof Date ? r[0].getTime() : 0; if (d >= t0 && norm_(r[7]) === key) sum += Number(r[8]) || 0; });
+  return sum;
+}
+function listGoals_() { const G = goals_(); return Object.keys(G).map(k => ({ key: k, label: G[k].label, title: G[k].title, target: G[k].target, start: G[k].start, done: goalDone_(k, G[k].start) })); }
+
 /** Багшийн «Дүн» хэсэгт өгөгдөл өгөх (нууц үгтэй) */
 function doGet(e) {
   const p = e.parameter || {};
-  if (p.action === 'ping') return out_({ ok: true, app: 'ajlyn-khuudas', v: 3 });
+  if (p.action === 'ping') return out_({ ok: true, app: 'ajlyn-khuudas', v: 4 });
+  // Ангийн хамтын зорилго: сурагчид зөвхөн бүлгийнхээ нийт тоог харна (нэр харагдахгүй)
+  if (p.action === 'goal') {
+    const key = norm_(p.group || ''), G = goals_()[key];
+    if (!G) return out_({ ok: true, goal: null });
+    const cache = CacheService.getScriptCache(), ck = 'goal_' + Utilities.base64EncodeWebSafe(key).slice(0, 200);
+    let done = cache.get(ck);
+    if (done == null) { done = goalDone_(key, G.start); cache.put(ck, String(done), 60); }
+    return out_({ ok: true, goal: { label: G.label, title: G.title, target: G.target, done: Number(done), start: G.start } });
+  }
   if (p.key !== TEACHER_KEY) return out_({ ok: false, error: 'key' });
   const sh = sheet_();
   const last = sh.getLastRow();
@@ -106,6 +126,17 @@ function doGet(e) {
     score: Number(r[8]), total: Number(r[9]), pct: Number(r[10]), minutes: Number(r[11]),
     missed: String(r[12]), detail: String(r[13]), answers: String(r[14]), attempt: Number(r[15])
   }));
+  if (p.action === 'goals') return out_({ ok: true, goals: listGoals_() });
+  if (p.action === 'setgoal') {
+    const G = goals_(), key = norm_(p.group || '');
+    if (!key) return out_({ ok: false, error: 'group' });
+    const t = parseInt(p.target, 10) || 0;
+    if (t <= 0) delete G[key];
+    else G[key] = { label: clean_(p.group, 20), title: clean_(p.title || '', 80), target: Math.min(100000, t), start: p.keep === '1' && G[key] ? G[key].start : new Date().toISOString() };
+    PropertiesService.getScriptProperties().setProperty('GOALS', JSON.stringify(G));
+    try { CacheService.getScriptCache().remove('goal_' + Utilities.base64EncodeWebSafe(key).slice(0, 200)); } catch (e) {}
+    return out_({ ok: true, goals: listGoals_() });
+  }
   if (p.code) return out_({ ok: true, rows: rows.filter(r => r.code === p.code) });
   // Код бүрийн товч жагсаалт
   const map = {};

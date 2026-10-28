@@ -1,0 +1,15 @@
+{
+  "name": "Математикийн ажлын хуудас",
+  "short_name": "Ажлын хуудас",
+  "description": "6–12-р ангийн математикийн бататгах дасгал",
+  "lang": "mn",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#EFF3F2",
+  "theme_color": "#1E3B33",
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}

@@ -1837,6 +1837,28 @@
     }
     return out;
   }
+  /* Буруу хариултын алдааны төрөл (сонголт ба бичсэн хариунд): тэмдэг, 10 дахин, 2 дахин, урвуу, ойрхон, байр солих … */
+  function mkind(p, c){
+    const v = p.v, eq = (a, b) => Math.abs(a - b) < 1e-9;
+    if(!c || !c.length || c.some(x => !isFinite(x))) return 'other';
+    if(p.type === 'num'){
+      const x = v[0], y = c[0];
+      if(x !== 0 && eq(y, -x)) return 'sign';
+      if(x !== 0 && (eq(y, x * 10) || eq(y, x / 10) || eq(y, x * 100) || eq(y, x / 100))) return 'place';
+      if(x !== 0 && (eq(y, 2 * x) || eq(y, x / 2))) return 'double';
+      if(x !== 0 && Math.abs(x) !== 1 && eq(y, 1 / x)) return 'recip';
+      if(Math.abs(y - x) <= .1 + 1e-9 && !Number.isInteger(Math.round(x * 1e9) / 1e9)) return 'round';
+      if(Math.abs(y - x) <= 2 + 1e-9) return 'near';
+      return 'other';
+    }
+    if(c.length < v.length) return 'missing';
+    if(c.length !== v.length) return 'other';
+    if(p.type === 'tuple' && v.length === 2 && eq(c[0], v[1]) && eq(c[1], v[0]) && !eq(v[0], v[1])) return 'swap';
+    const A = p.type === 'list' ? v.slice().sort((a, b) => a - b) : v, B = p.type === 'list' ? c.slice().sort((a, b) => a - b) : c;
+    if(p.type === 'list' ? A.map(Math.abs).sort((a, b) => a - b).every((a, i) => eq(a, B.map(Math.abs).sort((x, y) => x - y)[i])) && !A.every((a, i) => eq(a, B[i])) : A.every((a, i) => eq(Math.abs(a), Math.abs(B[i]))) && !A.every((a, i) => eq(a, B[i]))) return 'sign';
+    if(A.every((a, i) => Math.abs(a - B[i]) <= 1 + 1e-9)) return 'near';
+    return 'other';
+  }
   function addChoices(p, rng){
     const r = R(rng);
     const style = /√/.test(p.show) ? 'root' : /\//.test(p.show) ? 'frac' : /\d\.\d/.test(p.show) ? 'dec' : 'int';
@@ -1845,7 +1867,7 @@
       : style === 'int' ? (v => isInt(v[0]) ? fmt(Math.round(v[0])) : null)
       : style === 'dec' ? (v => Math.abs(v[0] * 1e6 - Math.round(v[0] * 1e6)) < 1e-3 ? fmt(v[0]) : null)
       : (v => pretty(v[0]));
-    const right = disp(p.v), seen = new Set([right]), wrong = [];
+    const right = disp(p.v), seen = new Set([right]), wrong = [], wk = [];
     const cand = candidates(p, r);
     for(let k = cand.length - 1; k > 0; k--){ const j = Math.floor(rng() * (k + 1)); [cand[k], cand[j]] = [cand[j], cand[k]]; }
     const nonneg = p.v.every(x => x >= 0);
@@ -1856,14 +1878,14 @@
       if(!c.length || c.some(x => !isFinite(x)) || (p.type !== 'num' && c.some(x => !isInt(x)))) continue;
       const s = disp(c);
       if(s == null || seen.has(s) || s.length > 40) continue;
-      seen.add(s); wrong.push(s);
+      seen.add(s); wrong.push(s); wk.push(mkind(p, c));
     }
     let pad = 2;
-    if(p.valid) for(let k = 1; k < 30 && wrong.length < 3; k++){ const c = [((p.v[0] + (k % 3) - 1) % 24 + 24) % 24, ((p.v[1] + 5 * k) % 60 + 60) % 60]; const sv = p.valid(c) ? disp(c) : null; if(sv && !seen.has(sv)){ seen.add(sv); wrong.push(sv); } }
-    while(wrong.length < 3 && pad < 80){ const c = p.v.map(x => x + pad * (pad % 2 ? 1 : -1)); const s = (nonneg && c.some(x => x < 0)) || (p.valid && !p.valid(c)) ? null : disp(c); if(s && !seen.has(s)){ seen.add(s); wrong.push(s); } pad++; }
-    const ci = Math.floor(rng() * 4), opts = wrong.slice(0, 3);
-    opts.splice(ci, 0, right);
-    return Object.assign(p, { mc: opts, ci });
+    if(p.valid) for(let k = 1; k < 30 && wrong.length < 3; k++){ const c = [((p.v[0] + (k % 3) - 1) % 24 + 24) % 24, ((p.v[1] + 5 * k) % 60 + 60) % 60]; const sv = p.valid(c) ? disp(c) : null; if(sv && !seen.has(sv)){ seen.add(sv); wrong.push(sv); wk.push('other'); } }
+    while(wrong.length < 3 && pad < 80){ const c = p.v.map(x => x + pad * (pad % 2 ? 1 : -1)); const s = (nonneg && c.some(x => x < 0)) || (p.valid && !p.valid(c)) ? null : disp(c); if(s && !seen.has(s)){ seen.add(s); wrong.push(s); wk.push(mkind(p, c)); } pad++; }
+    const ci = Math.floor(rng() * 4), opts = wrong.slice(0, 3), kinds = wk.slice(0, 3);
+    opts.splice(ci, 0, right); kinds.splice(ci, 0, 'right');
+    return Object.assign(p, { mc: opts, ci, mck: kinds });
   }
 
   /* ---------- хуудас үүсгэх ---------- */
@@ -1922,5 +1944,5 @@
     const v = parseVal(s);
     return !isNaN(v) && Math.abs(v - p.v[0]) < 1e-6;
   }
-  window.WS = { GRADES, TOPICS: T, topicsOf, makeSheet, check, parseVal, pretty, CHAPTERS: { 6: CH6, 7: CH7, 8: CH8, 9: CH9, 10: CH10, 11: CH11, 12: CH12 }, BOOKS: {} };
+  window.WS = { GRADES, TOPICS: T, topicsOf, makeSheet, check, mkind, parseVal, pretty, CHAPTERS: { 6: CH6, 7: CH7, 8: CH8, 9: CH9, 10: CH10, 11: CH11, 12: CH12 }, BOOKS: {} };
 })();
